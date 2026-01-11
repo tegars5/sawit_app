@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "954839207814",
+    "project_id": "cangkang-sawit-app-f2249",
+    "storage_bucket": "cangkang-sawit-app-f2249.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954839207814:android:74b14518a62b09d86b6607",
+        "android_client_info": {
+          "package_name": "com.example.cangkang_sawit_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjVM0Jlwv81ptTUFvSHfI-4B6rkr8xSqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
