@@ -27,7 +27,12 @@ class Product {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       category: json['category'] as String? ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      // ✅ Perbaikan: Handle jika price datang sebagai String
+      price: json['price'] != null
+          ? (json['price'] is String
+              ? (double.tryParse(json['price']) ?? 0.0)
+              : (json['price'] as num).toDouble())
+          : 0.0,
       stock: json['stock'] as int? ?? 0,
       images: json['images'] as String?,
       createdAt: json['created_at'] != null

@@ -44,27 +44,43 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as int,
-      orderCode: json['order_code'] as String,
-      userId: json['user_id'] as int,
-      totalAmount: (json['total_amount'] as num).toDouble(),
-      status: json['status'] as String,
-      destinationAddress: json['destination_address'] as String,
+      orderCode: json['order_code'] as String? ?? '',
+      userId: json['user_id'] as int? ?? 0,
+      // ✅ Safe parsing for totalAmount
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
+      status: json['status'] as String? ?? 'pending',
+      destinationAddress: json['destination_address'] as String? ?? '',
+      // ✅ Safe parsing for coordinates
       destinationLat: json['destination_lat'] != null
-          ? (json['destination_lat'] as num).toDouble()
+          ? (json['destination_lat'] is String
+              ? double.tryParse(json['destination_lat'])
+              : (json['destination_lat'] as num?)?.toDouble())
           : null,
       destinationLng: json['destination_lng'] != null
-          ? (json['destination_lng'] as num).toDouble()
+          ? (json['destination_lng'] is String
+              ? double.tryParse(json['destination_lng'])
+              : (json['destination_lng'] as num?)?.toDouble())
           : null,
+      // ✅ Safe parsing for distanceKm
       distanceKm: json['distance_km'] != null
-          ? (json['distance_km'] as num).toDouble()
+          ? (json['distance_km'] is String
+              ? double.tryParse(json['distance_km'])
+              : (json['distance_km'] as num?)?.toDouble())
           : null,
-      estimatedMinutes: json['estimated_minutes'] as int?,
+      // ✅ Safe parsing for estimatedMinutes
+      estimatedMinutes: json['estimated_minutes'] != null
+          ? (json['estimated_minutes'] is String
+              ? int.tryParse(json['estimated_minutes'])
+              : json['estimated_minutes'] as int?)
+          : null,
       cancelledAt: json['cancelled_at'] != null
-          ? DateTime.parse(json['cancelled_at'] as String)
+          ? DateTime.tryParse(json['cancelled_at'].toString())
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
       orderItems: json['order_items'] != null
           ? (json['order_items'] as List)

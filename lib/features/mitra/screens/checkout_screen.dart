@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
-import '../../../core/services/auth_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 
@@ -34,10 +34,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final cartProvider = context.read<CartProvider>();
     final orderProvider = context.read<OrderProvider>();
-    final authService = context.read<AuthService>();
 
-    // Set token
-    orderProvider.setToken(authService.currentUser!.id.toString());
+    // ✅ Get actual token from storage
+    final token = await StorageService.getToken();
+    if (token != null) {
+      orderProvider.setToken(token);
+    }
 
     final order = await orderProvider.createOrder(
       destinationAddress: _addressController.text.trim(),

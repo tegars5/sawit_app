@@ -27,19 +27,24 @@ class Payment {
     return Payment(
       id: json['id'] as int,
       orderId: json['order_id'] as int,
-      reference: json['reference'] as String,
+      reference: json['reference'] as String? ?? '',
       merchantRef: json['merchant_ref'] as String?,
-      amount: (json['amount'] as num).toDouble(),
-      paymentMethod: json['payment_method'] as String,
-      status: json['status'] as String,
+      // ✅ Perbaikan: Handle String to Double
+      amount: json['amount'] != null
+          ? (json['amount'] is String
+              ? (double.tryParse(json['amount']) ?? 0.0)
+              : (json['amount'] as num).toDouble())
+          : 0.0,
+      paymentMethod: json['payment_method'] as String? ?? '',
+      status: json['status'] as String? ?? 'unpaid',
       paidAt: json['paid_at'] != null
-          ? DateTime.parse(json['paid_at'] as String)
+          ? DateTime.tryParse(json['paid_at'] as String)
           : null,
       expiredAt: json['expired_at'] != null
-          ? DateTime.parse(json['expired_at'] as String)
+          ? DateTime.tryParse(json['expired_at'] as String)
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)
           : null,
     );
   }
