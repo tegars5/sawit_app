@@ -5,7 +5,7 @@ class Product {
   final String category;
   final double price;
   final int stock;
-  final String? images; // Comma-separated image URLs
+  final String? images;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 

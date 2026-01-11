@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/order.dart';
+import '../../../core/services/storage_service.dart';
 import 'order_tracking_screen.dart';
 import 'payment_screen.dart';
 
@@ -27,7 +28,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadOrderDetail();
+    _initializeAndLoad();
+  }
+
+  Future<void> _initializeAndLoad() async {
+    // ✅ Get token and set it before loading
+    final token = await StorageService.getToken();
+    if (token != null) {
+      _apiClient.setToken(token);
+    }
+    await _loadOrderDetail();
   }
 
   Future<void> _loadOrderDetail() async {

@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/order.dart';
+import '../../../core/services/storage_service.dart';
 import '../providers/order_provider.dart';
-import '../../../core/services/auth_service.dart';
 import 'order_detail_screen.dart';
 
 class OrderListScreen extends StatefulWidget {
@@ -27,12 +27,13 @@ class _OrderListScreenState extends State<OrderListScreen> {
     });
   }
 
-  void _loadInitialData() {
-    final authService = context.read<AuthService>();
+  void _loadInitialData() async {
     final orderProvider = context.read<OrderProvider>();
 
-    if (authService.currentUser != null) {
-      orderProvider.setToken(authService.currentUser!.id.toString());
+    // ✅ Get actual token from storage
+    final token = await StorageService.getToken();
+    if (token != null) {
+      orderProvider.setToken(token);
       orderProvider.loadOrders(refresh: true);
     }
   }

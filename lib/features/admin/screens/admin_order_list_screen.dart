@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/order.dart';
-import '../../../core/services/auth_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../providers/admin_order_provider.dart';
 import 'admin_order_detail_screen.dart';
 
@@ -27,12 +27,13 @@ class _AdminOrderListScreenState extends State<AdminOrderListScreen> {
     });
   }
 
-  void _loadInitialData() {
-    final authService = context.read<AuthService>();
+  void _loadInitialData() async {
     final orderProvider = context.read<AdminOrderProvider>();
 
-    if (authService.currentUser != null) {
-      orderProvider.setToken(authService.currentUser!.id.toString());
+    // ✅ Get actual token from storage
+    final token = await StorageService.getToken();
+    if (token != null) {
+      orderProvider.setToken(token);
       orderProvider.loadOrders(refresh: true);
     }
   }
