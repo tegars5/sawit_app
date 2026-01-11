@@ -346,6 +346,33 @@ class ApiClient {
     throw _handleError(response);
   }
 
+  Future<Map<String, dynamic>> initiateCheckoutPayment({
+    required String destinationAddress,
+    required double destinationLat,
+    required double destinationLng,
+    required List<Map<String, dynamic>> items,
+    required String paymentMethod,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/payments/initiate-checkout'),
+          headers: _headers,
+          body: jsonEncode({
+            'destination_address': destinationAddress,
+            'destination_lat': destinationLat,
+            'destination_lng': destinationLng,
+            'items': items,
+            'payment_method': paymentMethod,
+          }),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw _handleError(response);
+  }
+
   Future<Order> createOrder(Map<String, dynamic> data) async {
     final response = await http
         .post(
@@ -356,7 +383,13 @@ class ApiClient {
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 
     if (response.statusCode == 201) {
-      return Order.fromJson(jsonDecode(response.body));
+      // Debug: Print response to see structure
+      print('=== CREATE ORDER RESPONSE ===');
+      print(response.body);
+      print('============================');
+
+      final jsonResponse = jsonDecode(response.body);
+      return Order.fromJson(jsonResponse);
     }
     throw _handleError(response);
   }

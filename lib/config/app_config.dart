@@ -1,10 +1,11 @@
 class AppConfig {
   // API Configuration
-  static const String baseUrl = 'http://192.168.1.7:8000/api';
+  static const String baseUrl =
+      'https://unpensionable-zander-unmotioned.ngrok-free.dev/api';
 
   static const int requestTimeout = 30;
   static const int pageSize = 15;
-  static const int trackingPollInterval = 10; // seconds
+  static const int trackingPollInterval = 10;
 
   // Storage Keys
   static const String tokenKey = 'auth_token';

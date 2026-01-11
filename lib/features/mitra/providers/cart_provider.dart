@@ -84,7 +84,10 @@ class CartProvider extends ChangeNotifier {
     return _items.values.map((item) {
       return {
         'product_id': item.product.id,
+        'product_name': item.product.name, // ✅ Added for payment screen
         'quantity': item.quantity,
+        'price': item.product.price,
+        'subtotal': item.subtotal, // ✅ Added for payment screen
       };
     }).toList();
   }

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
-import '../../../core/services/storage_service.dart';
 import '../providers/cart_provider.dart';
-import '../providers/order_provider.dart';
+import 'checkout_payment_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -33,46 +32,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _isProcessing = true);
 
     final cartProvider = context.read<CartProvider>();
-    final orderProvider = context.read<OrderProvider>();
 
-    // ✅ Get actual token from storage
-    final token = await StorageService.getToken();
-    if (token != null) {
-      orderProvider.setToken(token);
-    }
+    // Navigate to payment screen instead of creating order
+    if (mounted) {
+      setState(() => _isProcessing = false);
 
-    final order = await orderProvider.createOrder(
-      destinationAddress: _addressController.text.trim(),
-      destinationLat: _defaultLat,
-      destinationLng: _defaultLng,
-      items: cartProvider.getOrderItems(),
-    );
-
-    setState(() => _isProcessing = false);
-
-    if (!mounted) return;
-
-    if (order != null) {
-      // Clear cart
-      cartProvider.clear();
-
-      // Show success
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order created successfully!'),
-          backgroundColor: AppColors.success,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CheckoutPaymentScreen(
+            cartItems: cartProvider.getOrderItems(),
+            totalAmount: cartProvider.totalAmount,
+            destinationAddress: _addressController.text.trim(),
+            destinationLat: _defaultLat,
+            destinationLng: _defaultLng,
+          ),
         ),
-      );
-
-      // Navigate to orders
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(orderProvider.error ?? 'Failed to create order'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ).then((_) {
+        // Clear cart when returning from payment
+        // (cart will be cleared in payment success screen)
+      });
     }
   }
 
