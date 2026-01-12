@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_config.dart';
 import '../models/auth_response.dart';
 import '../models/user.dart';
@@ -21,6 +23,26 @@ class ApiClient {
   void clearToken() {
     _token = null;
   }
+
+  /// Initialize token from SharedPreferences
+  /// Call this before making API requests to ensure token is loaded
+  Future<bool> initializeToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token != null && token.isNotEmpty) {
+        _token = token;
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error initializing token: $e');
+      return false;
+    }
+  }
+
+  /// Check if user is authenticated (has token)
+  bool get isAuthenticated => _token != null && _token!.isNotEmpty;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -516,17 +538,27 @@ class ApiClient {
   // ========== TRACKING API ==========
 
   Future<TrackingResponse> getOrderTracking(int orderId) async {
-    final response = await http
-        .get(
-          Uri.parse('${AppConfig.baseUrl}/orders/$orderId/tracking'),
-          headers: _headers,
-        )
-        .timeout(Duration(seconds: AppConfig.requestTimeout));
+    try {
+      // Kita gunakan _headers yang sudah otomatis menyertakan _token jika ada
+      final response = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/orders/$orderId/tracking'),
+        headers: _headers, // 👈 Gunakan ini, jangan buat Map baru manual
+      );
 
-    if (response.statusCode == 200) {
-      return TrackingResponse.fromJson(jsonDecode(response.body));
+      print("📡 API Tracking Status: ${response.statusCode}");
+      print(
+          "🔑 Header Digunakan: $_headers"); // Debug untuk memastikan token ada
+
+      if (response.statusCode == 200) {
+        return TrackingResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception(
+            'Gagal memuat data tracking. Status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("❌ Error API Client: $e");
+      rethrow;
     }
-    throw _handleError(response);
   }
 
   // ========== PAYMENT API ==========
