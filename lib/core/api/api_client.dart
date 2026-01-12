@@ -6,6 +6,7 @@ import '../models/auth_response.dart';
 import '../models/user.dart';
 import '../models/product.dart';
 import '../models/order.dart';
+import '../models/driver.dart';
 import '../models/paginated_response.dart';
 import '../models/tracking_response.dart';
 import '../models/payment_response.dart';
@@ -333,6 +334,10 @@ class ApiClient {
   }
 
   Future<Order> getOrder(int orderId) async {
+    print('📡 API: GET /orders/$orderId');
+    print('📋 Headers: ${_headers.keys.toList()}');
+    print('🔑 Has Authorization: ${_headers.containsKey('Authorization')}');
+
     final response = await http
         .get(
           Uri.parse('${AppConfig.baseUrl}/orders/$orderId'),
@@ -340,8 +345,36 @@ class ApiClient {
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 
+    print('📥 Response Status: ${response.statusCode}');
+
     if (response.statusCode == 200) {
       return Order.fromJson(jsonDecode(response.body));
+    }
+    throw _handleError(response);
+  }
+
+  // ✅ Admin-specific order detail endpoint
+  Future<Order> getAdminOrder(int orderId) async {
+    print('📡 API: GET /admin/orders/$orderId (ADMIN)');
+    print('📋 Headers: ${_headers.keys.toList()}');
+    print('🔑 Has Authorization: ${_headers.containsKey('Authorization')}');
+
+    final response = await http
+        .get(
+          Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId'),
+          headers: _headers,
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    print('📥 Response Status: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      // Backend returns { success: true, data: order }
+      if (jsonData['data'] != null) {
+        return Order.fromJson(jsonData['data']);
+      }
+      return Order.fromJson(jsonData);
     }
     throw _handleError(response);
   }
@@ -407,6 +440,77 @@ class ApiClient {
       return Order.fromJson(json['order']);
     }
     throw _handleError(response);
+  }
+
+  // ========== DRIVER APIs ==========
+
+  /// Fetch available drivers for assignment
+  Future<List<Driver>> getAvailableDrivers() async {
+    final response = await http
+        .get(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers/available'),
+          headers: _headers,
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data
+          .map((json) => Driver.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    throw _handleError(response);
+  }
+
+  /// Assign driver to order with optional waybill PDF
+  Future<Order> assignDriver(int orderId, int driverId,
+      [String? pdfFilePath]) async {
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/assign-driver'),
+    );
+
+    request.headers.addAll({
+      if (_token != null) 'Authorization': 'Bearer $_token',
+      'Accept': 'application/json',
+    });
+
+    request.fields['driver_id'] = driverId.toString();
+
+    if (pdfFilePath != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath('waybill_pdf', pdfFilePath),
+      );
+    }
+
+    final streamedResponse = await request.send().timeout(
+          Duration(seconds: AppConfig.requestTimeout),
+        );
+
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+
+      // Perbaikan di sini: Cek satu per satu agar tidak kena error 'Null'
+      if (jsonData != null) {
+        if (jsonData['data'] != null) {
+          return Order.fromJson(jsonData['data']);
+        } else if (jsonData['order'] != null) {
+          return Order.fromJson(jsonData['order']);
+        }
+      }
+
+      // Jika data tidak ditemukan di response, kita muat ulang data lokal saja
+      throw Exception('Data order tidak ditemukan dalam respon server');
+    }
+
+    throw _handleError(response);
+  }
+
+  /// Get waybill PDF URL for order
+  String getWaybillPdfUrl(int orderId) {
+    return '${AppConfig.baseUrl}/orders/$orderId/waybill/pdf';
   }
 
   // ========== TRACKING API ==========
@@ -497,20 +601,6 @@ class ApiClient {
     }
   }
 
-  Future<void> assignDriver(int orderId, int driverId) async {
-    final response = await http
-        .post(
-          Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/assign-driver'),
-          headers: _headers,
-          body: jsonEncode({'driver_id': driverId}),
-        )
-        .timeout(Duration(seconds: AppConfig.requestTimeout));
-
-    if (response.statusCode != 200) {
-      throw _handleError(response);
-    }
-  }
-
   Future<PaginatedResponse<User>> getDrivers({
     int page = 1,
     int perPage = 15,
@@ -528,21 +618,6 @@ class ApiClient {
         jsonDecode(response.body),
         (json) => User.fromJson(json),
       );
-    }
-    throw _handleError(response);
-  }
-
-  Future<List<User>> getAvailableDrivers() async {
-    final response = await http
-        .get(
-          Uri.parse('${AppConfig.baseUrl}/admin/drivers/available'),
-          headers: _headers,
-        )
-        .timeout(Duration(seconds: AppConfig.requestTimeout));
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => User.fromJson(json)).toList();
     }
     throw _handleError(response);
   }
