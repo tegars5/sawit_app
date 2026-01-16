@@ -65,13 +65,15 @@ class _DashboardOverviewState extends State<_DashboardOverview> {
     });
   }
 
-  void _loadData() {
+  Future<void> _loadData() async {
     final authService = context.read<AuthService>();
     final driverProvider = context.read<DriverOrderProvider>();
 
     if (authService.currentUser != null) {
-      driverProvider.setToken(authService.currentUser!.id.toString());
-      driverProvider.loadOrders();
+      // Initialize token from SharedPreferences first
+      await driverProvider.initializeToken();
+      // Then load orders
+      await driverProvider.loadOrders();
     }
   }
 
@@ -209,9 +211,17 @@ class _DashboardOverviewState extends State<_DashboardOverview> {
                 Expanded(
                   child: _StatCard(
                     icon: Icons.local_shipping,
-                    title: 'Active',
+                    title: 'Active Orders',
                     value: '$activeOrders',
                     color: AppColors.primary,
+                    onTap: () {
+                      // Navigate to deliveries tab
+                      final state = context
+                          .findAncestorStateOfType<_DriverHomeScreenState>();
+                      state?.setState(() {
+                        state._currentIndex = 1;
+                      });
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -221,6 +231,14 @@ class _DashboardOverviewState extends State<_DashboardOverview> {
                     title: 'Completed',
                     value: '$completedOrders',
                     color: AppColors.success,
+                    onTap: () {
+                      // Navigate to deliveries tab
+                      final state = context
+                          .findAncestorStateOfType<_DriverHomeScreenState>();
+                      state?.setState(() {
+                        state._currentIndex = 1;
+                      });
+                    },
                   ),
                 ),
               ],
@@ -258,46 +276,65 @@ class _StatCard extends StatelessWidget {
   final String title;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.icon,
     required this.title,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 24),
               ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 12,
+                      color: color.withOpacity(0.5),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -379,43 +416,48 @@ class _ProfilePlaceholder extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Logout'),
-                      content: const Text('Are you sure you want to logout?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.error,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
                           ),
-                          child: const Text('Logout'),
-                        ),
-                      ],
-                    ),
-                  );
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Logout'),
+                          ),
+                        ],
+                      ),
+                    );
 
-                  if (confirmed == true && context.mounted) {
-                    await authService.logout();
-                    if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/login');
+                    if (confirmed == true && context.mounted) {
+                      await authService.logout();
+                      if (context.mounted) {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
                     }
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                 ),
               ),
             ),

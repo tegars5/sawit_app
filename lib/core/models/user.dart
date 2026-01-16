@@ -28,24 +28,32 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // Helper function untuk konversi int yang aman
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
     return User(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      role: json['role'] as String,
-      phone: json['phone'] as String?,
-      address: json['address'] as String?,
-      profilePicture: json['profile_picture'] as String?,
-      fcmToken: json['fcm_token'] as String?,
-      token: json['token'] as String?,
+      id: toInt(json['id'], 0),
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      role: json['role']?.toString() ??
+          'mitra', // ✅ Default to 'mitra' if not provided
+      phone: json['phone']?.toString(),
+      address: json['address']?.toString(),
+      profilePicture: json['profile_picture']?.toString(),
+      fcmToken: json['fcm_token']?.toString(),
+      token: json['token']?.toString(),
       isAvailable: json['is_available'] == 1 ||
           json['is_available'] == true ||
           json['is_available'] == 'available',
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'].toString())
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
     );
   }

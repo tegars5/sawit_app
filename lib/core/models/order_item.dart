@@ -2,7 +2,8 @@ import 'product.dart';
 
 class OrderItem {
   final int id;
-  final int orderId;
+  final int?
+      orderId; // ✅ Made optional - backend doesn't send this in driver orders
   final int productId;
   final int quantity;
   final double price;
@@ -11,7 +12,7 @@ class OrderItem {
 
   OrderItem({
     required this.id,
-    required this.orderId,
+    this.orderId, // ✅ Now optional
     required this.productId,
     required this.quantity,
     required this.price,
@@ -20,7 +21,13 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
-    // Fungsi helper lokal untuk parsing double secara aman
+    // Fungsi helper lokal untuk parsing secara aman
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
     double parseDouble(dynamic value) {
       if (value == null) return 0.0;
       if (value is num) return value.toDouble();
@@ -29,15 +36,17 @@ class OrderItem {
     }
 
     return OrderItem(
-      id: json['id'] as int,
-      orderId: json['order_id'] as int,
-      productId: json['product_id'] as int,
-      quantity: json['quantity'] as int,
+      id: toInt(json['id'], 0),
+      orderId: json['order_id'] != null ? toInt(json['order_id'], 0) : null,
+      productId: toInt(json['product_id'], 0),
+      quantity: toInt(json['quantity'], 0),
       // ✅ Perbaikan: Gunakan parseDouble
       price: parseDouble(json['price']),
       subtotal: parseDouble(json['subtotal']),
       product: json['product'] != null
-          ? Product.fromJson(json['product'] as Map<String, dynamic>)
+          ? Product.fromJson(json['product'] is Map<String, dynamic>
+              ? json['product']
+              : Map<String, dynamic>.from(json['product'] as Map))
           : null,
     );
   }

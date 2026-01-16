@@ -1,18 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
-import '../../../core/utils/launcher_helper.dart';
 import '../../../core/models/tracking_response.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final int orderId;
-
-  const OrderTrackingScreen({
-    super.key,
-    required this.orderId,
-  });
+  const OrderTrackingScreen({super.key, required this.orderId});
 
   @override
   State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
@@ -20,34 +16,180 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final ApiClient _apiClient = ApiClient();
-  TrackingResponse? _tracking;
+  final Completer<GoogleMapController> _controller = Completer();
+
+  TrackingResponse? _trackingData;
+  Timer? _timer;
   bool _isLoading = true;
-  String? _error;
+
+  // Google Maps State
+  Map<PolylineId, Polyline> polylines = {};
+  List<LatLng> polylineCoordinates = [];
+  final Map<MarkerId, Marker> _markers = {};
+
+  // Gunakan API Key yang sudah Kakak buat
+  final String googleMapsApiKey = "AIzaSyDQOtvxYHnviEl-e_aQjamwVH8bQZnwh8U";
 
   @override
   void initState() {
     super.initState();
-    _loadTracking();
+    _initializeAndFetch();
   }
 
-  Future<void> _loadTracking() async {
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
+
+  /// Initialize token and start fetching tracking data
+  Future<void> _initializeAndFetch() async {
+    // 1. Load token dari SharedPreferences
+    final hasToken = await _apiClient.initializeToken();
+
+    if (!hasToken) {
+      // Jika tidak ada token, redirect ke login
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sesi Anda telah berakhir. Silakan login kembali.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        // Navigate to login - adjust route name sesuai dengan routing Anda
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+      return;
+    }
+
+    // 2. Fetch data pertama kali
+    await _fetchTrackingData();
+
+    // 3. Setup polling dengan safety check
+    _timer = Timer.periodic(
+      const Duration(seconds: 10),
+      (timer) {
+        // Hanya fetch jika widget masih mounted
+        if (mounted) {
+          _fetchTrackingData();
+        } else {
+          // Jika sudah tidak mounted, cancel timer
+          timer.cancel();
+        }
+      },
+    );
+  }
+
+  Future<void> _fetchTrackingData() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+      final data = await _apiClient.getOrderTracking(widget.orderId);
 
-      final tracking = await _apiClient.trackOrder(widget.orderId);
+      if (mounted) {
+        setState(() {
+          _trackingData = data;
+          _isLoading = false;
+        });
+        _updateMarkers(data);
 
-      setState(() {
-        _tracking = tracking;
-        _isLoading = false;
-      });
+        if (data.driverLocation != null) {
+          _getPolyline(
+            LatLng(
+                data.driverLocation!.latitude, data.driverLocation!.longitude),
+            LatLng(data.destinationLocation.latitude,
+                data.destinationLocation.longitude),
+          );
+        }
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      debugPrint("❌ Tracking Error: $e");
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Handle 401 Unauthorized
+        if (e.toString().contains('401')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sesi Anda telah berakhir. Silakan login kembali.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          // Cancel polling
+          _timer?.cancel();
+          // Navigate to login
+          Navigator.of(context).pushReplacementNamed('/login');
+        } else {
+          // Handle other errors
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal memuat data tracking: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _updateMarkers(TrackingResponse data) {
+    // Marker Lokasi Tujuan (Rumah Mitra)
+    final destination = LatLng(
+        data.destinationLocation.latitude, data.destinationLocation.longitude);
+    _markers[const MarkerId("destination")] = Marker(
+      markerId: const MarkerId("destination"),
+      position: destination,
+      infoWindow: const InfoWindow(title: "Lokasi Saya"),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+    );
+
+    // Marker Lokasi Driver (Jika sudah ada)
+    if (data.driverLocation != null) {
+      final driverPos =
+          LatLng(data.driverLocation!.latitude, data.driverLocation!.longitude);
+      _markers[const MarkerId("driver")] = Marker(
+        markerId: const MarkerId("driver"),
+        position: driverPos,
+        infoWindow:
+            InfoWindow(title: "Driver: ${data.driver?.name ?? 'Kurir'}"),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      );
+    }
+  }
+
+  // Perbaikan Sintaks Polyline untuk versi flutter_polyline_points terbaru
+  void _getPolyline(LatLng origin, LatLng dest) async {
+    // 1. Inisialisasi PolylinePoints dengan API Key langsung di sini
+    PolylinePoints polylinePoints = PolylinePoints(apiKey: googleMapsApiKey);
+
+    // 2. Gunakan PolylineRequest tanpa mengulang parameter API Key di bawah
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      request: PolylineRequest(
+        origin: PointLatLng(origin.latitude, origin.longitude),
+        destination: PointLatLng(dest.latitude, dest.longitude),
+        mode: TravelMode.driving,
+      ),
+    );
+
+    if (result.points.isNotEmpty) {
+      polylineCoordinates.clear();
+      for (var point in result.points) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      }
+
+      if (mounted) {
+        setState(() {
+          const id = PolylineId("poly");
+          polylines[id] = Polyline(
+            polylineId: id,
+            color: AppColors.primary,
+            points: polylineCoordinates,
+            width: 5,
+          );
+        });
+      }
     }
   }
 
@@ -55,386 +197,119 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Track Order'),
-        actions: [
-          IconButton(
-            onPressed: _loadTracking,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        title: Text('Track Order #${widget.orderId}'),
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: AppColors.error),
-                      const SizedBox(height: 16),
-                      const Text('Error loading tracking'),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _loadTracking,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _tracking == null
-                  ? const Center(child: Text('No tracking data'))
-                  : SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          // Map Placeholder
-                          Container(
-                            height: 300,
-                            color: AppColors.surfaceVariant,
-                            child: Stack(
-                              children: [
-                                Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.map,
-                                        size: 64,
-                                        color:
-                                            AppColors.primary.withOpacity(0.3),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Map View',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Google Maps integration coming soon',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              color: AppColors.textHint,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (_tracking!.driverLocation != null)
-                                  Positioned(
-                                    top: 16,
-                                    right: 16,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color:
-                                                Colors.black.withOpacity(0.1),
-                                            blurRadius: 8,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.location_on,
-                                                  color: AppColors.primary,
-                                                  size: 16),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Driver Location',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .labelSmall,
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Lat: ${_tracking!.driverLocation!.latitude.toStringAsFixed(4)}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                          Text(
-                                            'Lng: ${_tracking!.driverLocation!.longitude.toStringAsFixed(4)}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-
-                          // Tracking Info
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                // Order Status
-                                Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.info_outline,
-                                                color: AppColors.primary),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Order Status',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        _buildStatusTimeline(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Driver Info
-                                if (_tracking!.driver != null)
-                                  Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.person,
-                                                  color: AppColors.primary),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Driver Information',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium,
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Row(
-                                            children: [
-                                              const CircleAvatar(
-                                                radius: 30,
-                                                backgroundColor:
-                                                    AppColors.primary,
-                                                child: Icon(Icons.person,
-                                                    color: Colors.white),
-                                              ),
-                                              const SizedBox(width: 16),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      _tracking!.driver!.name,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleMedium,
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      _tracking!
-                                                              .driver!.phone ??
-                                                          '-',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyMedium,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(Icons.phone),
-                                                onPressed: () async {
-                                                  if (_tracking!
-                                                          .driver?.phone !=
-                                                      null) {
-                                                    try {
-                                                      await LauncherHelper
-                                                          .makePhoneCall(
-                                                              _tracking!.driver!
-                                                                  .phone!);
-                                                    } catch (e) {
-                                                      if (mounted) {
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(
-                                                          SnackBar(
-                                                              content: Text(
-                                                                  'Could not make call: $e')),
-                                                        );
-                                                      }
-                                                    }
-                                                  } else {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                          content: Text(
-                                                              'Driver phone number not available')),
-                                                    );
-                                                  }
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                const SizedBox(height: 16),
-                                // Delivery Info
-                                Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.local_shipping,
-                                                color: AppColors.primary),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Delivery Information',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        _buildInfoRow('Distance',
-                                            '${_tracking!.distanceKm ?? '-'} km'),
-                                        const SizedBox(height: 8),
-                                        _buildInfoRow(
-                                            'Estimated Time',
-                                            _tracking!.estimatedMinutes != null
-                                                ? '${_tracking!.estimatedMinutes} min'
-                                                : '-'),
-                                        const SizedBox(height: 8),
-                                        _buildInfoRow(
-                                          'Last Updated',
-                                          DateFormat('dd MMM yyyy, HH:mm')
-                                              .format(DateTime.now()),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-    );
-  }
-
-  Widget _buildStatusTimeline() {
-    final statuses = ['pending', 'confirmed', 'on_delivery', 'completed'];
-    final currentIndex = statuses.indexOf(_tracking!.orderStatus.toLowerCase());
-
-    return Column(
-      children: List.generate(statuses.length, (index) {
-        final status = statuses[index];
-        final isCompleted = index <= currentIndex;
-        final isCurrent = index == currentIndex;
-
-        return Row(
-          children: [
-            Column(
+          : Stack(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isCompleted
-                        ? AppColors.primary
-                        : AppColors.surfaceVariant,
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _trackingData != null
+                        ? LatLng(_trackingData!.destinationLocation.latitude,
+                            _trackingData!.destinationLocation.longitude)
+                        : const LatLng(-6.2000, 106.8166),
+                    zoom: 15,
                   ),
-                  child: Icon(
-                    isCompleted ? Icons.check : Icons.circle,
-                    color: isCompleted ? Colors.white : AppColors.textHint,
-                    size: 16,
-                  ),
+                  onMapCreated: (controller) =>
+                      _controller.complete(controller),
+                  polylines: Set<Polyline>.of(polylines.values),
+                  markers: Set<Marker>.of(_markers.values),
+                  myLocationButtonEnabled: false,
+                  padding: const EdgeInsets.only(
+                      bottom: 150), // Agar marker tidak tertutup Card
                 ),
-                if (index < statuses.length - 1)
-                  Container(
-                    width: 2,
-                    height: 40,
-                    color: isCompleted
-                        ? AppColors.primary
-                        : AppColors.surfaceVariant,
-                  ),
+                _buildOverlayStatus(),
               ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                status.toUpperCase().replaceAll('_', ' '),
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight:
-                          isCurrent ? FontWeight.bold : FontWeight.normal,
-                      color: isCompleted
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                    ),
-              ),
-            ),
-          ],
-        );
-      }),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildOverlayStatus() {
+    return Positioned(
+      bottom: 20,
+      left: 16,
+      right: 16,
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 8,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Colors.blueGrey,
+                    child: Icon(Icons.local_shipping,
+                        color: Colors.white, size: 30),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _trackingData?.driver?.name ?? "Menunggu Driver",
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _trackingData!.orderStatus
+                                .replaceAll('_', ' ')
+                                .toUpperCase(),
+                            style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (_trackingData?.distanceKm != null) ...[
+                const Divider(height: 30),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildInfoItem(
+                        Icons.social_distance,
+                        "${_trackingData!.distanceKm!.toStringAsFixed(1)} KM",
+                        "Jarak"),
+                    _buildInfoItem(
+                        Icons.access_time,
+                        "${_trackingData!.estimatedMinutes ?? '--'} Min",
+                        "Estimasi"),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String value, String label) {
+    return Column(
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-        ),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
+        Icon(icon, color: Colors.grey),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
       ],
     );
   }

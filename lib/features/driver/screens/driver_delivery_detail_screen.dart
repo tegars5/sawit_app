@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../../../config/theme.dart';
-import '../../../core/api/api_client.dart';
+import 'package:sliding_up_panel/sliding_up_panel.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/order.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/services/location_service.dart';
+import '../widgets/delivery_map_view.dart';
+import '../widgets/status_badge.dart';
+import '../widgets/delivery_bottom_sheet.dart';
 
 class DriverDeliveryDetailScreen extends StatefulWidget {
-  final int orderId;
+  final Order order;
 
   const DriverDeliveryDetailScreen({
     super.key,
-    required this.orderId,
+    required this.order,
   });
 
   @override
@@ -20,362 +25,193 @@ class DriverDeliveryDetailScreen extends StatefulWidget {
 class _DriverDeliveryDetailScreenState
     extends State<DriverDeliveryDetailScreen> {
   final ApiClient _apiClient = ApiClient();
-  Order? _order;
-  bool _isLoading = true;
-  String? _error;
+  late LocationService _locationService;
+  late Order _order;
+  bool _isTracking = false;
+  Stream<Position>? _locationStream;
 
   @override
   void initState() {
     super.initState();
-    _loadOrderDetail();
+    _order = widget.order;
+    _initialize();
   }
 
-  Future<void> _loadOrderDetail() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+  Future<void> _initialize() async {
+    await _initializeServices();
 
-      final order = await _apiClient.getOrder(widget.orderId);
+    // Auto-start tracking if status is on_delivery
+    if (_order.status == 'on_delivery') {
+      _startTrackingIfNeeded();
+    }
+  }
 
+  Future<void> _initializeServices() async {
+    await _apiClient.initializeToken();
+    _locationService = LocationService(_apiClient);
+  }
+
+  @override
+  void dispose() {
+    _locationService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startTrackingIfNeeded() async {
+    if (_isTracking) return;
+
+    final success = await _locationService.startTracking(_order.id);
+    if (success && mounted) {
       setState(() {
-        _order = order;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
+        _isTracking = true;
       });
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'assigned':
-        return AppColors.info;
-      case 'picked_up':
-        return AppColors.primary;
-      case 'delivered':
-        return AppColors.success;
-      default:
-        return AppColors.textSecondary;
+  Future<void> _handleComplete() async {
+    try {
+      // 1. Update status to backend
+      await _apiClient.updateDriverOrderStatus(_order.id, 'delivered');
+
+      // 2. Stop GPS tracking (save battery)
+      _locationService.stopTracking();
+
+      if (!mounted) return;
+
+      // 3. Show success dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 32),
+              SizedBox(width: 12),
+              Text('Pengiriman Selesai!'),
+            ],
+          ),
+          content: const Text(
+            'Pengiriman telah berhasil diselesaikan. Terima kasih!',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Back to list
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _viewWaybill() async {
+    if (_order.waybillUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Surat tugas belum tersedia')),
+      );
+      return;
+    }
+
+    final Uri url = Uri.parse(_order.waybillUrl!);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka PDF')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Delivery Detail'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: AppColors.error),
-                      const SizedBox(height: 16),
-                      const Text('Error loading delivery'),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _loadOrderDetail,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _order == null
-                  ? const Center(child: Text('Delivery not found'))
-                  : ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        // Delivery Header
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _order!.orderCode,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    if (_order!.deliveryOrder != null)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _getStatusColor(
-                                                  _order!.deliveryOrder!.status)
-                                              .withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          _order!.deliveryOrder!.status
-                                              .toUpperCase()
-                                              .replaceAll('_', ' '),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelMedium
-                                              ?.copyWith(
-                                                color: _getStatusColor(_order!
-                                                    .deliveryOrder!.status),
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  DateFormat('dd MMMM yyyy, HH:mm')
-                                      .format(_order!.createdAt),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
+      body: SlidingUpPanel(
+        parallaxEnabled: true,
+        parallaxOffset: 0.5,
+        minHeight: 300,
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        body: Stack(
+          children: [
+            // Map View
+            DeliveryMapView(
+              destinationLat: _order.destinationLat ?? 0,
+              destinationLng: _order.destinationLng ?? 0,
+              locationStream: _locationStream,
+            ),
 
-                        // Delivery Address
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on,
-                                        color: AppColors.primary),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Delivery Address',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _order!.destinationAddress,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Maps integration coming soon!'),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.map),
-                                    label: const Text('Open in Maps'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Order Items
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.shopping_bag,
-                                        color: AppColors.primary),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Order Items',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                if (_order!.orderItems != null)
-                                  ...(_order!.orderItems!.map((item) {
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 12),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  item.product?.name ??
-                                                      'Product',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyLarge,
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  '${item.quantity} x ${currencyFormat.format(item.price)}',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        color: AppColors
-                                                            .textSecondary,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Text(
-                                            currencyFormat
-                                                .format(item.subtotal),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyLarge
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  })),
-                                const Divider(),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Total',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge,
-                                    ),
-                                    Text(
-                                      currencyFormat
-                                          .format(_order!.totalAmount),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Customer Info
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.person,
-                                        color: AppColors.primary),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Customer Information',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                if (_order!.user != null) ...[
-                                  Text(
-                                    _order!.user!.name,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _order!.user!.phone ?? '-',
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      onPressed: () {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Call feature coming soon!'),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.phone),
-                                      label: const Text('Call Customer'),
-                                    ),
-                                  ),
-                                ] else
-                                  const Text('No customer information'),
-                              ],
-                            ),
-                          ),
+            // App Bar
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
                         ),
                       ],
                     ),
+                    child: const Icon(Icons.arrow_back, color: Colors.black87),
+                  ),
+                ),
+                title: const Text(
+                  'Detail Pengiriman',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                actions: [
+                  // Waybill Button
+                  if (_order.hasWaybill)
+                    IconButton(
+                      onPressed: _viewWaybill,
+                      icon: const Icon(Icons.description, color: Colors.blue),
+                      tooltip: 'Lihat Surat Tugas',
+                    ),
+                  // Bantuan Button
+                ],
+              ),
+            ),
+
+            // Status Badge
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 70,
+              left: 16,
+              child: StatusBadge(status: _order.status),
+            ),
+          ],
+        ),
+        panel: DeliveryBottomSheet(
+          order: _order,
+          onComplete: _handleComplete,
+          onViewWaybill: _viewWaybill,
+        ),
+      ),
     );
   }
 }
