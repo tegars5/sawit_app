@@ -18,14 +18,21 @@ class Driver {
   });
 
   factory Driver.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
     return Driver(
-      id: json['id'] as int,
-      name: json['name'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      phone: json['phone'] as String?,
-      vehicleType: json['vehicle_type'] as String?,
-      vehiclePlate: json['vehicle_plate'] as String?,
-      availabilityStatus: json['availability_status'] as String? ?? 'available',
+      id: toInt(json['id'], 0),
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString(),
+      vehicleType: json['vehicle_type']?.toString(),
+      vehiclePlate: json['vehicle_plate']?.toString(),
+      availabilityStatus:
+          json['availability_status']?.toString() ?? 'available',
     );
   }
 

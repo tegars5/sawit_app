@@ -15,19 +15,28 @@ class PaymentResponse {
 
   factory PaymentResponse.fromJson(Map<String, dynamic> json) {
     return PaymentResponse(
-      message: json['message'] as String,
-      payment: Payment.fromJson(json['payment'] as Map<String, dynamic>),
-      checkoutUrl: json['checkout_url'] as String?,
-      paymentInstructions:
-          json['payment_instructions'] as Map<String, dynamic>?,
+      message: json['message']?.toString() ?? '',
+      payment: Payment.fromJson(json['payment'] is Map<String, dynamic>
+          ? json['payment']
+          : Map<String, dynamic>.from(json['payment'] as Map)),
+      checkoutUrl: json['checkout_url']?.toString(),
+      paymentInstructions: json['payment_instructions'] is Map<String, dynamic>
+          ? json['payment_instructions']
+          : (json['payment_instructions'] != null
+              ? Map<String, dynamic>.from(json['payment_instructions'] as Map)
+              : null),
     );
   }
 
   // Get QR code URL if available
   String? get qrUrl {
     if (paymentInstructions == null) return null;
-    final data = paymentInstructions!['data'] as Map<String, dynamic>?;
-    return data?['qr_url'] as String?;
+    final data = paymentInstructions!['data'];
+    if (data == null) return null;
+    final dataMap = data is Map<String, dynamic>
+        ? data
+        : Map<String, dynamic>.from(data as Map);
+    return dataMap['qr_url']?.toString();
   }
 
   // Alias for compatibility
@@ -36,15 +45,19 @@ class PaymentResponse {
   // Get payment code if available
   String? get payCode {
     if (paymentInstructions == null) return null;
-    final data = paymentInstructions!['data'] as Map<String, dynamic>?;
-    return data?['pay_code'] as String?;
+    final data = paymentInstructions!['data'];
+    if (data == null) return null;
+    final dataMap = data is Map<String, dynamic>
+        ? data
+        : Map<String, dynamic>.from(data as Map);
+    return dataMap['pay_code']?.toString();
   }
 
   // Alias for compatibility
   String? get paymentCode => payCode;
 
-  // Get reference from payment
-  String get reference => payment.reference;
+  // Get reference from payment (nullable since backend doesn't always send it)
+  String? get reference => payment.reference;
 
   // Get payment method from payment
   String get paymentMethod => payment.paymentMethod;

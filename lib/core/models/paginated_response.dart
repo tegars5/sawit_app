@@ -6,7 +6,7 @@ class PaginatedResponse<T> {
   final int lastPage;
   final String? lastPageUrl;
   final String? nextPageUrl;
-  final String path;
+  final String? path;
   final int perPage;
   final String? prevPageUrl;
   final int? to;
@@ -20,7 +20,7 @@ class PaginatedResponse<T> {
     required this.lastPage,
     this.lastPageUrl,
     this.nextPageUrl,
-    required this.path,
+    this.path,
     required this.perPage,
     this.prevPageUrl,
     this.to,
@@ -31,21 +31,44 @@ class PaginatedResponse<T> {
     Map<String, dynamic> json,
     T Function(Map<String, dynamic>) fromJsonT,
   ) {
+    // Fungsi pembantu untuk konversi int yang aman
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
     return PaginatedResponse<T>(
-      currentPage: json['current_page'] as int,
-      data: (json['data'] as List)
-          .map((item) => fromJsonT(item as Map<String, dynamic>))
-          .toList(),
-      firstPageUrl: json['first_page_url'] as String?,
-      from: json['from'] as int?,
-      lastPage: json['last_page'] as int,
-      lastPageUrl: json['last_page_url'] as String?,
-      nextPageUrl: json['next_page_url'] as String?,
-      path: json['path'] as String,
-      perPage: json['per_page'] as int,
-      prevPageUrl: json['prev_page_url'] as String?,
-      to: json['to'] as int?,
-      total: json['total'] as int,
+      // Gunakan fungsi pembantu agar tidak crash jika null
+      currentPage: toInt(json['current_page'], 1),
+
+      // Pastikan data adalah list, jika null beri list kosong []
+      data: (json['data'] as List?)?.map((item) {
+            try {
+              return fromJsonT(item is Map<String, dynamic>
+                  ? item
+                  : Map<String, dynamic>.from(item as Map));
+            } catch (e) {
+              print('🔍 DEBUG: Error parsing item: $e');
+              rethrow;
+            }
+          }).toList() ??
+          [],
+
+      // Gunakan toString() lebih aman daripada 'as String?'
+      firstPageUrl: json['first_page_url']?.toString(),
+      from: json['from'] != null ? toInt(json['from'], 0) : null,
+
+      lastPage: toInt(json['last_page'], 1),
+      lastPageUrl: json['last_page_url']?.toString(),
+      nextPageUrl: json['next_page_url']?.toString(),
+      path: json['path']?.toString(),
+
+      perPage: toInt(json['per_page'], 15),
+      prevPageUrl: json['prev_page_url']?.toString(),
+      to: json['to'] != null ? toInt(json['to'], 0) : null,
+
+      total: toInt(json['total'], 0),
     );
   }
 

@@ -668,11 +668,54 @@ class ApiClient {
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 
+    // 🔍 DEBUG: Print raw response
+    print('🔍 DEBUG API: Status Code: ${response.statusCode}');
+    print('🔍 DEBUG API: Response Body: ${response.body}');
+
     if (response.statusCode == 200) {
-      return PaginatedResponse<Order>.fromJson(
-        jsonDecode(response.body),
-        (json) => Order.fromJson(json),
-      );
+      final jsonData = jsonDecode(response.body);
+
+      // 🔍 DEBUG: Print parsed data structure
+      print('🔍 DEBUG API: jsonData keys: ${jsonData.keys}');
+      print('🔍 DEBUG API: Has "success"? ${jsonData.containsKey("success")}');
+      print('🔍 DEBUG API: Has "data"? ${jsonData.containsKey("data")}');
+
+      // Backend wraps response in { success: true, data: {...} }
+      // Extract the actual paginated data
+      final paginatedData = jsonData['data'] ?? jsonData;
+
+      // 🔍 DEBUG: Print paginated data structure
+      print('🔍 DEBUG API: paginatedData keys: ${paginatedData.keys}');
+      if (paginatedData.containsKey('total')) {
+        print('🔍 DEBUG API: Total items: ${paginatedData["total"]}');
+      }
+      if (paginatedData.containsKey('data')) {
+        print(
+            '🔍 DEBUG API: Data array length: ${paginatedData["data"]?.length}');
+      }
+
+      try {
+        return PaginatedResponse<Order>.fromJson(
+          paginatedData,
+          (json) {
+            try {
+              print('🔍 DEBUG PARSING: Parsing order ID ${json['id']}');
+              return Order.fromJson(json);
+            } catch (e, stackTrace) {
+              print('🔍 DEBUG PARSING ERROR: Failed to parse order');
+              print('🔍 DEBUG PARSING ERROR: JSON: $json');
+              print('🔍 DEBUG PARSING ERROR: Error: $e');
+              print('🔍 DEBUG PARSING ERROR: StackTrace: $stackTrace');
+              rethrow;
+            }
+          },
+        );
+      } catch (e, stackTrace) {
+        print('🔍 DEBUG API ERROR: Failed to create PaginatedResponse');
+        print('🔍 DEBUG API ERROR: Error: $e');
+        print('🔍 DEBUG API ERROR: StackTrace: $stackTrace');
+        rethrow;
+      }
     }
     throw _handleError(response);
   }
@@ -691,11 +734,36 @@ class ApiClient {
     }
   }
 
-  Future<void> updateDeliveryStatus(int deliveryId, String status) async {
+  /// Update order status by driver (New endpoint)
+  /// Endpoint: POST /api/driver/orders/{orderId}/status
+  /// Body: { "status": "on_delivery" | "arrived" | "completed" }
+  Future<Map<String, dynamic>> updateDriverOrderStatus(
+      int orderId, String status) async {
     final response = await http
         .post(
-          Uri.parse(
-              '${AppConfig.baseUrl}/driver/delivery-orders/$deliveryId/status'),
+          Uri.parse('${AppConfig.baseUrl}/driver/orders/$orderId/status'),
+          headers: _headers,
+          body: jsonEncode({'status': status}),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      return jsonData;
+    }
+    throw _handleError(response);
+  }
+
+  /// Update delivery status (Legacy endpoint - untuk backward compatibility)
+  /// Gunakan updateDriverOrderStatus untuk endpoint baru
+  @Deprecated('Use updateDriverOrderStatus instead')
+  Future<void> updateDeliveryStatus(int deliveryId, String status) async {
+    // Pastikan token terisi
+    if (_token == null) await initializeToken();
+
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/driver/orders/$deliveryId/status'),
           headers: _headers,
           body: jsonEncode({'status': status}),
         )
@@ -706,18 +774,44 @@ class ApiClient {
     }
   }
 
-  Future<void> updateDriverLocation(
-      int deliveryId, double lat, double lng) async {
+  /// Update lokasi driver ke tabel delivery_tracks (Endpoint Baru)
+  Future<void> updateDriverLocation(int orderId, double lat, double lng) async {
+    // Pastikan token terisi
+    if (_token == null) await initializeToken();
+
     final response = await http
         .post(
-          Uri.parse(
-              '${AppConfig.baseUrl}/driver/delivery-orders/$deliveryId/track'),
+          Uri.parse('${AppConfig.baseUrl}/orders/$orderId/update-location'),
           headers: _headers,
           body: jsonEncode({'lat': lat, 'lng': lng}),
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw _handleError(response);
+    }
+  }
+
+  /// Update driver location for real-time tracking (Driver App)
+  /// Endpoint: POST /api/orders/{orderId}/update-location
+  /// Body: { "lat": double, "lng": double }
+  Future<void> updateOrderLocation({
+    required int orderId,
+    required double lat,
+    required double lng,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/orders/$orderId/update-location'),
+          headers: _headers,
+          body: jsonEncode({
+            'lat': lat,
+            'lng': lng,
+          }),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
       throw _handleError(response);
     }
   }

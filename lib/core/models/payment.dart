@@ -1,7 +1,8 @@
 class Payment {
   final int id;
-  final int orderId;
-  final String reference;
+  final int?
+      orderId; // ✅ Made optional - backend doesn't send this in driver orders
+  final String? reference; // ✅ Made optional
   final String? merchantRef;
   final double amount;
   final String paymentMethod;
@@ -12,8 +13,8 @@ class Payment {
 
   Payment({
     required this.id,
-    required this.orderId,
-    required this.reference,
+    this.orderId, // ✅ Now optional
+    this.reference, // ✅ Now optional
     this.merchantRef,
     required this.amount,
     required this.paymentMethod,
@@ -24,27 +25,37 @@ class Payment {
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
+    // Helper function untuk konversi yang aman
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return Payment(
-      id: json['id'] as int,
-      orderId: json['order_id'] as int,
-      reference: json['reference'] as String? ?? '',
-      merchantRef: json['merchant_ref'] as String?,
+      id: toInt(json['id'], 0),
+      orderId: json['order_id'] != null ? toInt(json['order_id'], 0) : null,
+      reference: json['reference']?.toString(),
+      merchantRef: json['merchant_ref']?.toString(),
       // ✅ Perbaikan: Handle String to Double
-      amount: json['amount'] != null
-          ? (json['amount'] is String
-              ? (double.tryParse(json['amount']) ?? 0.0)
-              : (json['amount'] as num).toDouble())
-          : 0.0,
-      paymentMethod: json['payment_method'] as String? ?? '',
-      status: json['status'] as String? ?? 'unpaid',
+      amount: parseDouble(json['amount']),
+      paymentMethod: json['payment_method']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'unpaid',
       paidAt: json['paid_at'] != null
-          ? DateTime.tryParse(json['paid_at'] as String)
+          ? DateTime.tryParse(json['paid_at'].toString())
           : null,
       expiredAt: json['expired_at'] != null
-          ? DateTime.tryParse(json['expired_at'] as String)
+          ? DateTime.tryParse(json['expired_at'].toString())
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'].toString())
           : null,
     );
   }

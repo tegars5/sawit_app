@@ -22,19 +22,29 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    // Helper functions untuk konversi yang aman
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return Product(
-      id: json['id'] as int,
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      category: json['category'] as String? ?? '',
+      id: toInt(json['id'], 0),
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
       // ✅ Perbaikan: Handle jika price datang sebagai String
-      price: json['price'] != null
-          ? (json['price'] is String
-              ? (double.tryParse(json['price']) ?? 0.0)
-              : (json['price'] as num).toDouble())
-          : 0.0,
-      stock: json['stock'] as int? ?? 0,
-      images: json['images'] as String?,
+      price: parseDouble(json['price']),
+      stock: toInt(json['stock'], 0),
+      images: json['images']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,

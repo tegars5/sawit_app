@@ -2,38 +2,50 @@ import 'user.dart';
 
 class DeliveryOrder {
   final int id;
-  final int orderId;
+  final int? orderId; // ✅ Made optional - backend doesn't always send this
   final int driverId;
   final String
       status; // 'assigned', 'on_the_way', 'arrived', 'completed', 'cancelled'
+  final String? waybillPdf; // PDF filename from backend
   final User? driver;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   DeliveryOrder({
     required this.id,
-    required this.orderId,
+    this.orderId, // ✅ Now optional
     required this.driverId,
     required this.status,
+    this.waybillPdf,
     this.driver,
     this.createdAt,
     this.updatedAt,
   });
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
+    // Helper function untuk konversi int yang aman
+    int toInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+
     return DeliveryOrder(
-      id: json['id'] as int,
-      orderId: json['order_id'] as int,
-      driverId: json['driver_id'] as int,
-      status: json['status'] as String,
+      id: toInt(json['id'], 0),
+      orderId: json['order_id'] != null ? toInt(json['order_id'], 0) : null,
+      driverId: toInt(json['driver_id'], 0),
+      status: json['status']?.toString() ?? 'assigned',
+      waybillPdf: json['waybill_pdf']?.toString(),
       driver: json['driver'] != null
-          ? User.fromJson(json['driver'] as Map<String, dynamic>)
+          ? User.fromJson(json['driver'] is Map<String, dynamic>
+              ? json['driver']
+              : Map<String, dynamic>.from(json['driver'] as Map))
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'].toString())
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
     );
   }
@@ -44,6 +56,7 @@ class DeliveryOrder {
       'order_id': orderId,
       'driver_id': driverId,
       'status': status,
+      'waybill_pdf': waybillPdf,
       'driver': driver?.toJson(),
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),

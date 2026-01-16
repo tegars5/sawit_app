@@ -156,8 +156,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.error_outline,
-                              color: AppColors.error),
+                          Icon(Icons.error_outline, color: AppColors.error),
                           SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -321,7 +320,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
-                  _buildDetailRow('Reference', _payment!.reference),
+                  _buildDetailRow('Reference', _payment!.reference ?? 'N/A'),
                   const Divider(height: 24),
                   _buildDetailRow('Method', _payment!.paymentMethod),
                   const Divider(height: 24),
