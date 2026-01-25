@@ -238,7 +238,7 @@ class ApiClient {
   }) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('${AppConfig.baseUrl}/products'),
+      Uri.parse('${AppConfig.baseUrl}/admin/products'),
     );
 
     request.headers.addAll({
@@ -274,17 +274,16 @@ class ApiClient {
     Map<String, dynamic> productData, {
     File? imageFile,
   }) async {
-    // Use POST with _method=PUT for multipart compatibility
+    // Use POST for multipart compatibility
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('${AppConfig.baseUrl}/products/$productId'),
+      Uri.parse('${AppConfig.baseUrl}/admin/products/$productId'),
     );
 
     request.headers.addAll({
       'Authorization': _headers['Authorization'] ?? '',
       'Accept': 'application/json',
     });
-
     // Add product data
     request.fields['name'] = productData['name'].toString();
     request.fields['description'] = productData['description'].toString();
@@ -312,7 +311,7 @@ class ApiClient {
   Future<void> deleteProduct(int productId) async {
     final response = await http
         .delete(
-          Uri.parse('${AppConfig.baseUrl}/products/$productId'),
+          Uri.parse('${AppConfig.baseUrl}/admin/products/$productId'),
           headers: _headers,
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));

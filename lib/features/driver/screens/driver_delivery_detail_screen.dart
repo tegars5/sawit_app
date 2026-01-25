@@ -96,8 +96,8 @@ class _DriverDeliveryDetailScreenState
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Back to list
+                Navigator.pop(context);
+                Navigator.pop(context);
               },
               child: const Text('OK'),
             ),
