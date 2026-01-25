@@ -52,12 +52,22 @@ class ApiClient {
 
   // ========== AUTH APIs ==========
 
-  Future<AuthResponse> register(Map<String, dynamic> data) async {
+  Future<AuthResponse> register({
+    required String name,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
     final response = await http
         .post(
           Uri.parse('${AppConfig.baseUrl}/register'),
           headers: _headers,
-          body: jsonEncode(data),
+          body: jsonEncode({
+            'name': name,
+            'email': email,
+            'password': password,
+            'password_confirmation': passwordConfirmation,
+          }),
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/order.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/order_service.dart';
 import '../widgets/delivery_map_view.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/delivery_bottom_sheet.dart';
@@ -64,46 +65,101 @@ class _DriverDeliveryDetailScreenState
     if (success && mounted) {
       setState(() {
         _isTracking = true;
+        // 👇 Initialize stream for real-time UI updates
+        _locationStream = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        );
       });
     }
   }
 
   Future<void> _handleComplete() async {
     try {
-      // 1. Update status to backend
-      await _apiClient.updateDriverOrderStatus(_order.id, 'delivered');
+      // 1. Check Location Permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Izin lokasi ditolak. Mohon aktifkan izin lokasi.';
+        }
+      }
 
-      // 2. Stop GPS tracking (save battery)
-      _locationService.stopTracking();
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Izin lokasi ditolak permanen. Mohon ubah di pengaturan.';
+      }
+
+      // 2. Get Current Location
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // 3. Call API to complete delivery
+      final orderService = OrderService();
+      final result = await orderService.completeDelivery(
+        orderId: _order.id,
+        currentLat: position.latitude,
+        currentLng: position.longitude,
+      );
 
       if (!mounted) return;
 
-      // 3. Show success dialog
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 32),
-              SizedBox(width: 12),
-              Text('Pengiriman Selesai!'),
+      if (result != null && result['success'] == true) {
+        // 4. Success - Stop tracking and navigate home
+        _locationService.stopTracking();
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 32),
+                SizedBox(width: 12),
+                Text('Pengiriman Selesai!'),
+              ],
+            ),
+            content: Text(
+              result['message'] ?? 'Pengiriman telah berhasil diselesaikan.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  // Refresh home screen list by rebuilding it
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/driver/home',
+                    (route) => false,
+                  );
+                },
+                child: const Text('OK'),
+              ),
             ],
           ),
-          content: const Text(
-            'Pengiriman telah berhasil diselesaikan. Terima kasih!',
+        );
+      } else {
+        // 5. Failure (e.g. Geofencing)
+        String message = result?['message'] ??
+            orderService.error ??
+            'Gagal menyelesaikan pesanan';
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Konfirmasi Lokasi'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -132,6 +188,61 @@ class _DriverDeliveryDetailScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tidak dapat membuka PDF')),
       );
+    }
+  }
+
+  Future<void> _handleUpdateStatus(String newStatus) async {
+    try {
+      setState(() => _isTracking =
+          true); // Reuse tracking var for loading state if needed, or add _isLoading
+
+      await _apiClient.updateDriverOrderStatus(_order.id, newStatus);
+
+      // Refresh order data (you might want to fetch fresh data from API)
+      final updatedOrder = await _apiClient.getOrder(_order.id);
+
+      if (mounted) {
+        setState(() {
+          _order = updatedOrder;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Status berhasil diperbarui ke ${_getStatusLabel(newStatus)}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // If starting delivery, ensure tracking is on
+        if (newStatus == 'on_delivery') {
+          _startTrackingIfNeeded();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal update status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        // setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'picked_up':
+        return 'Barang Diangkut';
+      case 'on_delivery':
+        return 'Dalam Pengiriman';
+      default:
+        return status;
     }
   }
 
@@ -206,10 +317,13 @@ class _DriverDeliveryDetailScreenState
             ),
           ],
         ),
-        panel: DeliveryBottomSheet(
+        // Use panelBuilder to get ScrollController
+        panelBuilder: (scrollController) => DeliveryBottomSheet(
           order: _order,
           onComplete: _handleComplete,
+          onUpdateStatus: _handleUpdateStatus,
           onViewWaybill: _viewWaybill,
+          scrollController: scrollController, // Pass the controller
         ),
       ),
     );

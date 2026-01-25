@@ -57,13 +57,23 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(Map<String, dynamic> data) async {
+  Future<bool> register(
+    String name,
+    String email,
+    String password,
+    String passwordConfirmation,
+  ) async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      final AuthResponse response = await _apiClient.register(data);
+      final AuthResponse response = await _apiClient.register(
+        name: name,
+        email: email,
+        password: password,
+        passwordConfirmation: passwordConfirmation,
+      );
 
       // Save token and user
       await StorageService.saveToken(response.token);

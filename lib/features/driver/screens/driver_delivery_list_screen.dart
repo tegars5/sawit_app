@@ -40,40 +40,20 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
   }
 
   Future<void> _viewWaybill(Order order) async {
-    print('🔍 DEBUG: _viewWaybill called');
-    print('🔍 DEBUG: order.hasWaybill = ${order.hasWaybill}');
-    print('🔍 DEBUG: order.waybillPdf = ${order.waybillPdf}');
-    print(
-        '🔍 DEBUG: order.deliveryOrder?.waybillPdf = ${order.deliveryOrder?.waybillPdf}');
-    print('🔍 DEBUG: order.waybillUrl = ${order.waybillUrl}');
-
     if (order.waybillUrl == null) {
-      print('❌ DEBUG: waybillUrl is null');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Surat jalan belum tersedia')),
       );
       return;
     }
 
-    print('✅ DEBUG: Attempting to open URL: ${order.waybillUrl}');
     final Uri url = Uri.parse(order.waybillUrl!);
-
-    try {
-      if (await canLaunchUrl(url)) {
-        print('✅ DEBUG: canLaunchUrl returned true, launching...');
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        print('❌ DEBUG: canLaunchUrl returned false');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tidak dapat membuka PDF')),
-        );
-      }
-    } catch (e) {
-      print('❌ DEBUG: Error launching URL: $e');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        const SnackBar(content: Text('Tidak dapat membuka PDF')),
       );
     }
   }
@@ -90,39 +70,27 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
         title: const Text(
-          'My Deliveries',
+          'Daftar Pengiriman',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // TODO: Notifications
-            },
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Completed'),
+            Tab(text: 'Aktif'),
+            Tab(text: 'Selesai'),
           ],
         ),
       ),
@@ -137,13 +105,12 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(provider.error!),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
+                  TextButton(
                     onPressed: _loadOrders,
-                    child: const Text('Retry'),
+                    child: const Text('Coba Lagi'),
                   ),
                 ],
               ),
@@ -160,9 +127,7 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
           return TabBarView(
             controller: _tabController,
             children: [
-              // Upcoming Tab
               _buildOrderList(upcomingOrders, isUpcoming: true),
-              // Completed Tab
               _buildOrderList(completedOrders, isUpcoming: false),
             ],
           );
@@ -180,17 +145,16 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
             Icon(
               isUpcoming
                   ? Icons.local_shipping_outlined
-                  : Icons.check_circle_outline,
+                  : Icons.assignment_turned_in_outlined,
               size: 64,
-              color: Colors.grey[400],
+              color: Colors.grey[300],
             ),
             const SizedBox(height: 16),
             Text(
-              isUpcoming ? 'No upcoming deliveries' : 'No completed deliveries',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+              isUpcoming
+                  ? 'Tidak ada pengiriman aktif'
+                  : 'Belum ada riwayat pengiriman',
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ],
         ),
@@ -203,12 +167,11 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
         padding: const EdgeInsets.all(16),
         itemCount: orders.length,
         itemBuilder: (context, index) {
-          final order = orders[index];
           return _DeliveryCard(
-            order: order,
+            order: orders[index],
             isUpcoming: isUpcoming,
-            onViewWaybill: () => _viewWaybill(order),
-            onStartDelivery: () => _startDelivery(order),
+            onViewWaybill: () => _viewWaybill(orders[index]),
+            onStartDelivery: () => _startDelivery(orders[index]),
           );
         },
       ),
@@ -229,279 +192,257 @@ class _DeliveryCard extends StatelessWidget {
     required this.onStartDelivery,
   });
 
-  String _getStatusLabel() {
+  Color _getStatusColor() {
     switch (order.status) {
       case 'assigned':
-        return 'Assigned';
+        return Colors.orange;
       case 'picked_up':
-        return 'Picked Up';
+        return Colors.blue;
       case 'on_delivery':
-        return 'On Delivery';
+        return Colors.green;
       case 'delivered':
       case 'completed':
-        return 'Completed';
+        return Colors.grey;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText() {
+    switch (order.status) {
+      case 'assigned':
+        return 'Ditugaskan';
+      case 'picked_up':
+        return 'Diangkut';
+      case 'on_delivery':
+        return 'Dikirim';
+      case 'delivered':
+      case 'completed':
+        return 'Selesai';
       default:
         return order.status;
     }
   }
 
-  Color _getStatusColor() {
-    switch (order.status) {
-      case 'assigned':
-        return Colors.green;
-      case 'picked_up':
-        return Colors.orange;
-      case 'on_delivery':
-        return Colors.blue;
-      case 'delivered':
-      case 'completed':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getFromLocation() {
-    // Assuming warehouse or first pickup point
-    return order.orderItems?.first.product?.name ?? 'PT PalmSource, Medan';
-  }
-
   @override
   Widget build(BuildContext context) {
+    final statusColor = _getStatusColor();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: Order ID + Status
-            Row(
+      child: Column(
+        children: [
+          // Header Status
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.05),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Order ID: ${order.orderCode}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    'Order #${order.orderCode}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: statusColor.withOpacity(0.2)),
                   ),
                   child: Text(
-                    _getStatusLabel(),
+                    _getStatusText(),
                     style: TextStyle(
+                      color: statusColor,
                       fontSize: 12,
-                      color: _getStatusColor(),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 16),
-
-            // From Location
-            Row(
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.circle,
-                    size: 12,
-                    color: Colors.green,
-                  ),
+                // Timeline Style Locations
+                _buildTimelineRow(
+                  icon: Icons.circle,
+                  iconColor: Colors.green,
+                  label: 'Dari',
+                  value:
+                      order.orderItems?.first.product?.name ?? 'Gudang Utama',
+                  isLast: false,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'From',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
+                _buildTimelineRow(
+                  icon: Icons.location_on,
+                  iconColor: Colors.red,
+                  label: 'Ke',
+                  value: order.destinationAddress,
+                  isLast: true,
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                // Date & Items
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today,
+                            size: 16, color: Colors.grey),
+                        const SizedBox(width: 6),
+                        Text(
+                          DateFormat('dd MMM yyyy').format(order.createdAt),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
                         ),
+                      ],
+                    ),
+                    if (order.estimatedMinutes != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.timer, size: 16, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Text(
+                            '~${order.estimatedMinutes} min',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        _getFromLocation(),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                  ],
+                ),
+
+                if (isUpcoming) ...[
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      if (order.hasWaybill)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onViewWaybill,
+                            icon: const Icon(Icons.description, size: 18),
+                            label: const Text('Surat Jalan'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (order.hasWaybill) const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2, // Give detail button more space
+                        child: ElevatedButton(
+                          onPressed: onStartDelivery,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Detail & Kirim',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
+                ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 12),
-
-            // To Location
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.location_on,
-                    size: 12,
-                    color: Colors.red,
-                  ),
-                ),
-                const SizedBox(width: 12),
+  Widget _buildTimelineRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required bool isLast,
+  }) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Icon(icon, size: 16, color: iconColor),
+              if (!isLast)
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'To',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      Text(
-                        order.destinationAddress,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  child: Container(
+                    width: 1,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: Colors.grey[300],
                   ),
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Date
-            Row(
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.calendar_today,
-                    size: 12,
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
                     color: Colors.grey,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Date',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    Text(
-                      DateFormat('dd/MM/yyyy').format(order.createdAt),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                if (!isLast) const SizedBox(height: 12),
               ],
             ),
-
-            if (isUpcoming) ...[
-              const SizedBox(height: 16),
-
-              // Action Buttons
-              Row(
-                children: [
-                  // View Surat Jalan Button
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: order.hasWaybill ? onViewWaybill : null,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'View Surat Jalan',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Start Delivery Button
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: onStartDelivery,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Start Delivery',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
