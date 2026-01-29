@@ -727,7 +727,17 @@ class DriverOrderController extends Controller
         
         $ordersData = $deliveryOrders->getCollection()->map(function($deliveryOrder) {
             $order = $deliveryOrder->order;
-            
+            if (!$order) return null;
+
+            // --- ✅ 1. PASTIKAN BAGIAN INI ADA ---
+            // Generate Signed URL valid selama 60 menit
+            $waybillUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                'api.waybill.generate', 
+                now()->addMinutes(60),
+                ['id' => $order->id]
+            );
+            // ------------------------------------
+
             return [
                 'id' => $order->id,
                 'order_code' => $order->order_code,
@@ -741,6 +751,9 @@ class DriverOrderController extends Controller
                 'estimated_minutes' => $order->estimated_minutes,
                 'created_at' => $order->created_at,
                 'updated_at' => $order->updated_at,
+
+                'waybill_url' => $waybillUrl, 
+                'has_waybill' => in_array($order->status, ['picked_up', 'on_delivery', 'completed', 'delivered']),
                 
                 'user' => $order->user ? [
                     'id' => $order->user->id,
@@ -776,17 +789,18 @@ class DriverOrderController extends Controller
                     'id' => $deliveryOrder->id,
                     'driver_id' => $deliveryOrder->driver_id,
                     'status' => $deliveryOrder->status,
+                    'waybill_pdf' => $deliveryOrder->waybill_pdf, // ✅ Added for fallback
                     'assigned_at' => $deliveryOrder->assigned_at,
                     'created_at' => $deliveryOrder->created_at,
                 ],
             ];
-        });
+        })->filter();
         
         return response()->json([
             'success' => true,
             'data' => [
                 'current_page' => $deliveryOrders->currentPage(),
-                'data' => $ordersData,
+                'data' => $ordersData->values(),
                 'last_page' => $deliveryOrders->lastPage(),
                 'total' => $deliveryOrders->total(),
                 'per_page' => $deliveryOrders->perPage(),
@@ -3125,3 +3139,5 @@ WAREHOUSE_LAT=-6.174811960976456
 WAREHOUSE_LNG=106.78990868029996
 
 FIREBASE_CREDENTIALS=storage/firebase/cangkang-sawit-app-f2249-firebase-adminsdk-fbsvc-39bf245f07.json
+
+---------------------------------------------------------------------------

@@ -493,37 +493,29 @@ class ApiClient {
     throw _handleError(response);
   }
 
-  /// Assign driver to order with optional waybill PDF
-  Future<Order> assignDriver(int orderId, int driverId,
-      [String? pdfFilePath]) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/assign-driver'),
-    );
+  /// Assign driver to order (Auto-generate waybill PDF)
+  ///
+  /// ✅ UPDATED: No PDF upload required, backend auto-generates from database
+  /// Backend: POST /api/admin/orders/{orderId}/assign-driver
+  /// Body: { "driver_id": int }
+  Future<Order> assignDriver(int orderId, int driverId) async {
+    // Ensure token is initialized
+    if (_token == null) await initializeToken();
 
-    request.headers.addAll({
-      if (_token != null) 'Authorization': 'Bearer $_token',
-      'Accept': 'application/json',
-    });
-
-    request.fields['driver_id'] = driverId.toString();
-
-    if (pdfFilePath != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('waybill_pdf', pdfFilePath),
-      );
-    }
-
-    final streamedResponse = await request.send().timeout(
-          Duration(seconds: AppConfig.requestTimeout),
-        );
-
-    final response = await http.Response.fromStream(streamedResponse);
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/assign-driver'),
+          headers: _headers,
+          body: jsonEncode({
+            'driver_id': driverId,
+          }),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
 
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
 
-      // Perbaikan di sini: Cek satu per satu agar tidak kena error 'Null'
+      // Check response structure
       if (jsonData != null) {
         if (jsonData['data'] != null) {
           return Order.fromJson(jsonData['data']);
@@ -532,7 +524,7 @@ class ApiClient {
         }
       }
 
-      // Jika data tidak ditemukan di response, kita muat ulang data lokal saja
+      // If data not found in response, reload order
       throw Exception('Data order tidak ditemukan dalam respon server');
     }
 
@@ -802,16 +794,26 @@ class ApiClient {
   }
 
   /// Update driver location for real-time tracking (Driver App)
-  /// Endpoint: POST /api/orders/{orderId}/update-location
+  /// Update driver location during delivery
+  ///
+  /// ✅ FIXED: Changed endpoint to match backend driver tracking route
+  /// Backend: POST /api/driver/orders/{id}/track (DriverOrderController@track)
+  /// This endpoint saves tracking history to delivery_tracks table
+  ///
+  /// Endpoint: POST /api/driver/orders/{orderId}/track
   /// Body: { "lat": double, "lng": double }
   Future<void> updateOrderLocation({
     required int orderId,
     required double lat,
     required double lng,
   }) async {
+    // Ensure token is initialized
+    if (_token == null) await initializeToken();
+
     final response = await http
         .post(
-          Uri.parse('${AppConfig.baseUrl}/orders/$orderId/update-location'),
+          // ✅ Use driver-specific endpoint that records tracking history
+          Uri.parse('${AppConfig.baseUrl}/driver/orders/$orderId/track'),
           headers: _headers,
           body: jsonEncode({
             'lat': lat,

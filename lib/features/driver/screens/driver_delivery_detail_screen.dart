@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
+// ✅ REMOVED: url_launcher import (no longer needed)
 import '../../../core/models/order.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/services/location_service.dart';
@@ -172,24 +172,7 @@ class _DriverDeliveryDetailScreenState
     }
   }
 
-  Future<void> _viewWaybill() async {
-    if (_order.waybillUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Surat tugas belum tersedia')),
-      );
-      return;
-    }
-
-    final Uri url = Uri.parse(_order.waybillUrl!);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka PDF')),
-      );
-    }
-  }
+  // ✅ REMOVED: _viewWaybill method (waybill no longer accessible)
 
   Future<void> _handleUpdateStatus(String newStatus) async {
     try {
@@ -296,16 +279,8 @@ class _DriverDeliveryDetailScreenState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                actions: [
-                  // Waybill Button
-                  if (_order.hasWaybill)
-                    IconButton(
-                      onPressed: _viewWaybill,
-                      icon: const Icon(Icons.description, color: Colors.blue),
-                      tooltip: 'Lihat Surat Tugas',
-                    ),
-                  // Bantuan Button
-                ],
+                // ✅ REMOVED: Waybill button (no longer needed)
+                actions: const [],
               ),
             ),
 
@@ -322,7 +297,7 @@ class _DriverDeliveryDetailScreenState
           order: _order,
           onComplete: _handleComplete,
           onUpdateStatus: _handleUpdateStatus,
-          onViewWaybill: _viewWaybill,
+          // ✅ REMOVED: onViewWaybill parameter
           scrollController: scrollController, // Pass the controller
         ),
       ),

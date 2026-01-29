@@ -16,6 +16,8 @@ class Order {
   final double? distanceKm;
   final int? estimatedMinutes;
   final String? waybillPdf;
+  final String? waybillUrlFromApi; // Added field for signed URL
+  final bool? hasWaybillFromApi; // Added field for has_waybill flag
   final DateTime? cancelledAt;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -36,6 +38,8 @@ class Order {
     this.distanceKm,
     this.estimatedMinutes,
     this.waybillPdf,
+    this.waybillUrlFromApi,
+    this.hasWaybillFromApi,
     this.cancelledAt,
     required this.createdAt,
     this.updatedAt,
@@ -85,6 +89,11 @@ class Order {
               : json['estimated_minutes'] as int?)
           : null,
       waybillPdf: json['waybill_pdf']?.toString(),
+      // ✅ Parse Signed URL from API
+      waybillUrlFromApi: json['waybill_url']?.toString(),
+      // ✅ Parse has_waybill flag from API
+      hasWaybillFromApi: json['has_waybill'] as bool?,
+
       cancelledAt: json['cancelled_at'] != null
           ? DateTime.tryParse(json['cancelled_at'].toString())
           : null,
@@ -133,6 +142,8 @@ class Order {
       'distance_km': distanceKm,
       'estimated_minutes': estimatedMinutes,
       'waybill_pdf': waybillPdf,
+      'waybill_url': waybillUrlFromApi,
+      'has_waybill': hasWaybillFromApi,
       'cancelled_at': cancelledAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -179,28 +190,37 @@ class Order {
   bool get hasDistanceCalculation =>
       distanceKm != null && estimatedMinutes != null;
 
-  /// Get full waybill PDF URL from delivery_order
+  /// Get full waybill URL
+  /// Prioritizes the Signed URL from API if available
   String? get waybillUrl {
-    // Priority 1: Check delivery_order.waybill_pdf (from backend)
-    if (deliveryOrder?.waybillPdf != null &&
-        deliveryOrder!.waybillPdf!.isNotEmpty) {
-      // Use ngrok URL from AppConfig (without /api suffix)
-      const baseUrl = 'https://unpensionable-zander-unmotioned.ngrok-free.dev';
-      return '$baseUrl/storage/waybills/${deliveryOrder!.waybillPdf}';
+    // 1. Prioritize Signed URL from API
+    if (waybillUrlFromApi != null && waybillUrlFromApi!.isNotEmpty) {
+      return waybillUrlFromApi;
     }
 
-    // Priority 2: Check order.waybill_pdf (fallback)
+    // 2. Fallback: Check delivery_order.waybill_pdf (from backend)
+    // Be careful with hardcoded URLs
+    if (deliveryOrder?.waybillPdf != null &&
+        deliveryOrder!.waybillPdf!.isNotEmpty) {
+      return 'https://unpensionable-zander-unmotioned.ngrok-free.dev/storage/waybills/${deliveryOrder!.waybillPdf}';
+    }
+
+    // 3. Fallback: Check order.waybill_pdf
     if (waybillPdf != null && waybillPdf!.isNotEmpty) {
-      const baseUrl = 'https://unpensionable-zander-unmotioned.ngrok-free.dev';
-      return '$baseUrl/storage/$waybillPdf';
+      return 'https://unpensionable-zander-unmotioned.ngrok-free.dev/storage/$waybillPdf';
     }
 
     return null;
   }
 
   /// Check if waybill is available
-  bool get hasWaybill =>
-      (deliveryOrder?.waybillPdf != null &&
-          deliveryOrder!.waybillPdf!.isNotEmpty) ||
-      (waybillPdf != null && waybillPdf!.isNotEmpty);
+  bool get hasWaybill {
+    // If we have a direct URL, it's available
+    if (waybillUrlFromApi != null && waybillUrlFromApi!.isNotEmpty) return true;
+
+    // Fallback logic
+    return (deliveryOrder?.waybillPdf != null &&
+            deliveryOrder!.waybillPdf!.isNotEmpty) ||
+        (waybillPdf != null && waybillPdf!.isNotEmpty);
+  }
 }

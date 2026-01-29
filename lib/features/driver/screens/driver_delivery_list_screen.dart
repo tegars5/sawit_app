@@ -48,23 +48,68 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
     }
 
     final Uri url = Uri.parse(order.waybillUrl!);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    print('🔍 DEBUG: Launching Waybill URL: $url');
+
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        // Fallback catch-all
+        await launchUrl(url, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka PDF')),
+        SnackBar(content: Text('Gagal membuka PDF: $e')),
       );
     }
   }
 
-  void _startDelivery(Order order) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DriverDeliveryDetailScreen(order: order),
-      ),
-    );
+  Future<void> _startDelivery(Order order) async {
+    try {
+      // Show loading
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Memulai pengiriman...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      // Get provider
+      final provider = Provider.of<DriverOrderProvider>(context, listen: false);
+
+      // Update status to on_delivery via API
+      // This will also auto-start GPS tracking
+      final success = await provider.updateOrderStatus(order.id, 'on_delivery');
+
+      if (!success) {
+        throw Exception('Gagal update status');
+      }
+
+      if (!mounted) return;
+
+      // Navigate to detail screen with updated order
+      final updatedOrder = provider.orders.firstWhere(
+        (o) => o.id == order.id,
+        orElse: () => order,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DriverDeliveryDetailScreen(order: updatedOrder),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memulai pengiriman: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -345,46 +390,43 @@ class _DeliveryCard extends StatelessWidget {
                   ],
                 ),
 
-                if (isUpcoming) ...[
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      if (order.hasWaybill)
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: onViewWaybill,
-                            icon: const Icon(Icons.description, size: 18),
-                            label: const Text('Surat Jalan'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: const BorderSide(color: AppColors.primary),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (order.hasWaybill) const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2, // Give detail button more space
-                        child: ElevatedButton(
-                          onPressed: onStartDelivery,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Detail & Kirim',
-                            style: TextStyle(color: Colors.white),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => onViewWaybill(),
+                        icon: const Icon(Icons.description, size: 18),
+                        label: const Text('Surat Jalan'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 1,
+                      child: ElevatedButton(
+                        onPressed: onStartDelivery,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Kirim',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

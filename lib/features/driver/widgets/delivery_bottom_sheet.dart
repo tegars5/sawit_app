@@ -9,7 +9,7 @@ class DeliveryBottomSheet extends StatelessWidget {
   final Order order;
   final Future<void> Function() onComplete;
   final Function(String status)? onUpdateStatus;
-  final VoidCallback? onViewWaybill;
+  // ✅ REMOVED: onViewWaybill callback (waybill no longer accessible)
   final ScrollController? scrollController;
 
   const DeliveryBottomSheet({
@@ -17,7 +17,7 @@ class DeliveryBottomSheet extends StatelessWidget {
     required this.order,
     required this.onComplete,
     this.onUpdateStatus,
-    this.onViewWaybill,
+    // ✅ REMOVED: onViewWaybill parameter
     this.scrollController,
   });
 
@@ -236,38 +236,7 @@ class DeliveryBottomSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (order.hasWaybill)
-                  InkWell(
-                    onTap: onViewWaybill,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.blue[100]!),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.description, color: Colors.blue),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Lihat Surat Jalan',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          const Icon(Icons.arrow_forward_ios,
-                              size: 16, color: Colors.blue),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Extra padding for scrolling behind sticky button
-                const SizedBox(height: 100),
+                const SizedBox(height: 50),
               ],
             ),
           ),
@@ -364,38 +333,11 @@ class DeliveryBottomSheet extends StatelessWidget {
       );
     }
 
-    // If Waybill exists and Order is active, show side-by-side
-    if (order.hasWaybill &&
-        (order.status == 'assigned' ||
-            order.status == 'picked_up' ||
-            order.status == 'on_delivery')) {
-      return Row(
-         crossAxisAlignment: CrossAxisAlignment.center, // Vertically center items in the row
-        children: [
-          // Waybill Button (Small)
-          SizedBox(
-            height: 50,
-            width: 50,
-            child: ElevatedButton(
-              onPressed: onViewWaybill,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.zero,
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Icon(Icons.description),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Main Action (Expanded)
-          Expanded(child: mainButton),
-        ],
-      );
+    // ✅ Show only main action button (waybill button removed)
+    if (order.status == 'assigned' ||
+        order.status == 'picked_up' ||
+        order.status == 'on_delivery') {
+      return mainButton;
     }
 
     return mainButton;
