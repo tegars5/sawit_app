@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:lottie/lottie.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/services/storage_service.dart';
@@ -71,8 +72,25 @@ class _CheckoutPaymentScreenState extends State<CheckoutPaymentScreen> {
 
   Future<void> _processPayment() async {
     if (_selectedPaymentMethod == null) {
-      setState(() => _error = 'Please select a payment method');
+      _showFailureDialog(
+        title: 'Metode Pembayaran',
+        message: 'Silakan pilih metode pembayaran terlebih dahulu.',
+      );
       return;
+    }
+
+    // Hitung total quantity
+    int totalQty = widget.cartItems
+        .fold(0, (sum, item) => sum + (item['quantity'] as int));
+
+    // ❌ VALIDASI: Cek minimal 10 Ton
+    if (totalQty < 10) {
+      _showFailureDialog(
+        title: 'Pemesanan Gagal',
+        message:
+            'Mohon maaf, minimum pemesanan adalah 10 Ton.\nTotal pesanan Anda saat ini: $totalQty Ton.',
+      );
+      return; // Stop proses
     }
 
     setState(() {
@@ -112,10 +130,72 @@ class _CheckoutPaymentScreenState extends State<CheckoutPaymentScreen> {
       }
     } catch (e) {
       setState(() {
-        _error = e.toString();
         _isProcessing = false;
       });
+      if (mounted) {
+        _showFailureDialog(
+          title: 'Pembayaran Gagal',
+          message:
+              'Terjadi kesalahan saat memproses pembayaran:\n${e.toString().replaceAll('Exception: ', '')}',
+        );
+      }
     }
+  }
+
+  void _showFailureDialog({required String title, required String message}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 🎬 Lottie Animation
+            Lottie.asset(
+              'assets/animations/error.json',
+              width: 150,
+              height: 150,
+              repeat: false,
+            ),
+
+            const SizedBox(height: 16),
+
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+            ),
+
+            const SizedBox(height: 24),
+
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+              child: const Text('Tutup', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override

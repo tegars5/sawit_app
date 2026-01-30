@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../widgets/success_animation.dart';
+import '../widgets/failure_animation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -60,12 +61,12 @@ class _LoginScreenState extends State<LoginScreen> {
         },
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authService.error ?? 'Login failed'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        await FailureAnimation.show(
+          context: context,
+          message: 'Maaf Email dan Password anda salah',
+        );
+      }
     }
   }
 

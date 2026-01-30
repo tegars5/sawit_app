@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'dart:async';
 import '../../../config/theme.dart';
 import '../../../core/models/order.dart';
 import '../providers/driver_order_provider.dart';
@@ -18,11 +21,14 @@ class DriverDeliveryListScreen extends StatefulWidget {
 class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _driverLocation = 'Mengambil lokasi...';
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _startLocationTracking(); // Start GPS tracking
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrders();
     });
@@ -31,12 +37,115 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _positionStreamSubscription?.cancel(); // Cancel GPS stream
     super.dispose();
   }
 
   Future<void> _loadOrders() async {
     final provider = Provider.of<DriverOrderProvider>(context, listen: false);
     await provider.loadOrders();
+  }
+
+  Future<void> _startLocationTracking() async {
+    try {
+      // Check if location service is enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _driverLocation = 'GPS tidak aktif';
+        });
+        return;
+      }
+
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _driverLocation = 'Izin lokasi ditolak';
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _driverLocation = 'Izin lokasi ditolak permanen';
+        });
+        return;
+      }
+
+      // Get initial position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+
+      // Convert to address
+      await _updateLocationAddress(position);
+
+      // Start listening to position updates
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          distanceFilter: 1000,
+        ),
+      ).listen((Position position) async {
+        if (mounted) {
+          await _updateLocationAddress(position);
+        }
+      });
+    } catch (e) {
+      print('❌ Error getting location: $e');
+      setState(() {
+        _driverLocation = 'Lokasi tidak tersedia';
+      });
+    }
+  }
+
+  Future<void> _updateLocationAddress(Position position) async {
+    try {
+      // Reverse geocoding: coordinates → address
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+
+        // Build readable address
+        String address = '';
+        if (place.street != null && place.street!.isNotEmpty) {
+          address = place.street!;
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          address +=
+              address.isEmpty ? place.subLocality! : ', ${place.subLocality}';
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          address += address.isEmpty ? place.locality! : ', ${place.locality}';
+        }
+
+        setState(() {
+          _driverLocation = address.isNotEmpty ? address : 'Lokasi saat ini';
+        });
+        print('📍 Driver location: $_driverLocation');
+      } else {
+        // Fallback to coordinates if no address found
+        setState(() {
+          _driverLocation =
+              '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        });
+      }
+    } catch (e) {
+      print('⚠️ Geocoding error: $e');
+      // Fallback to coordinates on error
+      setState(() {
+        _driverLocation =
+            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+      });
+    }
   }
 
   Future<void> _viewWaybill(Order order) async {
@@ -215,6 +324,7 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
           return _DeliveryCard(
             order: orders[index],
             isUpcoming: isUpcoming,
+            driverLocation: _driverLocation, // Pass real-time location
             onViewWaybill: () => _viewWaybill(orders[index]),
             onStartDelivery: () => _startDelivery(orders[index]),
           );
@@ -227,12 +337,14 @@ class _DriverDeliveryListScreenState extends State<DriverDeliveryListScreen>
 class _DeliveryCard extends StatelessWidget {
   final Order order;
   final bool isUpcoming;
+  final String driverLocation;
   final VoidCallback onViewWaybill;
   final VoidCallback onStartDelivery;
 
   const _DeliveryCard({
     required this.order,
     required this.isUpcoming,
+    required this.driverLocation,
     required this.onViewWaybill,
     required this.onStartDelivery,
   });
@@ -336,15 +448,14 @@ class _DeliveryCard extends StatelessWidget {
               children: [
                 // Timeline Style Locations
                 _buildTimelineRow(
-                  icon: Icons.circle,
-                  iconColor: Colors.green,
-                  label: 'Dari',
-                  value:
-                      order.orderItems?.first.product?.name ?? 'Gudang Utama',
+                  icon: Icons.local_shipping, // Truck icon
+                  iconColor: Colors.blue,
+                  label: 'Posisi Saat Ini',
+                  value: driverLocation, // Real-time driver location
                   isLast: false,
                 ),
                 _buildTimelineRow(
-                  icon: Icons.location_on,
+                  icon: Icons.place, // Pin icon
                   iconColor: Colors.red,
                   label: 'Ke',
                   value: order.destinationAddress,
@@ -407,24 +518,27 @@ class _DeliveryCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: ElevatedButton(
-                        onPressed: onStartDelivery,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                    // Only show Kirim button if order is not completed
+                    if (order.status != 'completed') ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 1,
+                        child: ElevatedButton(
+                          onPressed: onStartDelivery,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Kirim',
+                            style: TextStyle(color: Colors.white),
                           ),
                         ),
-                        child: const Text(
-                          'Kirim',
-                          style: TextStyle(color: Colors.white),
-                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],

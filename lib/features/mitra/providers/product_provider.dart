@@ -20,7 +20,27 @@ class ProductProvider extends ChangeNotifier {
   double? _minPrice;
   double? _maxPrice;
 
-  List<Product> get products => _products;
+  List<Product> get products {
+    return _products.where((p) {
+      bool matchesSearch = _searchQuery == null ||
+          _searchQuery!.isEmpty ||
+          p.name.toLowerCase().contains(_searchQuery!.toLowerCase());
+
+      bool matchesCategory = _selectedCategory == null ||
+          _selectedCategory!.isEmpty ||
+          p.category.toLowerCase() == _selectedCategory!.toLowerCase();
+
+      bool matchesMinPrice = _minPrice == null || p.price >= _minPrice!;
+
+      bool matchesMaxPrice = _maxPrice == null || p.price <= _maxPrice!;
+
+      return matchesSearch &&
+          matchesCategory &&
+          matchesMinPrice &&
+          matchesMaxPrice;
+    }).toList();
+  }
+
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get currentPage => _currentPage;

@@ -191,7 +191,7 @@ class DeliveryBottomSheet extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.location_on,
+                      const Icon(Icons.place,
                           color: Colors.redAccent, size: 28),
                       const SizedBox(width: 12),
                       Expanded(
@@ -242,22 +242,23 @@ class DeliveryBottomSheet extends StatelessWidget {
           ),
 
           // Sticky Action Section
-          SafeArea(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
+          if (order.status != 'completed' && order.status != 'cancelled')
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: _buildActionButton(context),
               ),
-              child: _buildActionButton(context),
             ),
-          ),
         ],
       ),
     );
@@ -277,10 +278,8 @@ class DeliveryBottomSheet extends StatelessWidget {
 
   Widget _buildActionButton(BuildContext context) {
     // Primary Action Button content based on status
-    Widget mainButton;
-
     if (order.status == 'assigned') {
-      mainButton = ElevatedButton.icon(
+      return ElevatedButton.icon(
         onPressed: () => onUpdateStatus?.call('picked_up'),
         icon: const Icon(Icons.check_box),
         label: const Text('Konfirmasi Penjemputan'),
@@ -295,7 +294,7 @@ class DeliveryBottomSheet extends StatelessWidget {
         ),
       );
     } else if (order.status == 'picked_up') {
-      mainButton = ElevatedButton.icon(
+      return ElevatedButton.icon(
         onPressed: () => onUpdateStatus?.call('on_delivery'),
         icon: const Icon(Icons.local_shipping),
         label: const Text('Mulai Pengiriman'),
@@ -310,37 +309,13 @@ class DeliveryBottomSheet extends StatelessWidget {
         ),
       );
     } else if (order.status == 'on_delivery') {
-      mainButton = SwipeCompleteButton(
+      return SwipeCompleteButton(
         onComplete: onComplete,
         text: 'Geser untuk Selesai',
       );
-    } else {
-      mainButton = Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Text(
-          'Pesanan Selesai',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
     }
 
-    // ✅ Show only main action button (waybill button removed)
-    if (order.status == 'assigned' ||
-        order.status == 'picked_up' ||
-        order.status == 'on_delivery') {
-      return mainButton;
-    }
-
-    return mainButton;
+    return const SizedBox.shrink();
   }
 }
 

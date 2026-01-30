@@ -211,7 +211,7 @@ class ApiClient {
       if (maxPrice != null) 'max_price': maxPrice.toString(),
     };
 
-    final uri = Uri.parse('${AppConfig.baseUrl}/products/search')
+    final uri = Uri.parse('${AppConfig.baseUrl}/products')
         .replace(queryParameters: queryParams);
 
     final response = await http

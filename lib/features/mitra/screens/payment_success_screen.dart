@@ -3,6 +3,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
 import '../providers/cart_provider.dart';
+import '../providers/product_provider.dart';
 import 'order_list_screen.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
@@ -42,6 +43,9 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                 children: [
                   IconButton(
                     onPressed: () {
+                      context
+                          .read<ProductProvider>()
+                          .loadProducts(refresh: true);
                       Navigator.of(context).popUntil((route) => route.isFirst);
                     },
                     icon: const Icon(Icons.close),
@@ -67,20 +71,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Success Icon with Circle
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check_circle,
-                        color: AppColors.success,
-                        size: 64,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    // Success Icon REMOVED (User request: "lottie nya 1 aja")
 
                     // Title
                     const Text(
@@ -268,6 +259,9 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
+                        context
+                            .read<ProductProvider>()
+                            .loadProducts(refresh: true);
                         Navigator.of(context)
                             .popUntil((route) => route.isFirst);
                         // Navigate to orders tab
@@ -303,6 +297,9 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                     height: 50,
                     child: OutlinedButton(
                       onPressed: () {
+                        context
+                            .read<ProductProvider>()
+                            .loadProducts(refresh: true);
                         Navigator.of(context)
                             .popUntil((route) => route.isFirst);
                       },

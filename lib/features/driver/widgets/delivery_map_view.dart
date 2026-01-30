@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as dart_ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -88,32 +89,89 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
     }
   }
 
-  void _updateMarkers() {
-    _markers.clear();
+  Future<BitmapDescriptor> _createCustomMarkerBitmap(
+      IconData iconData, Color color) async {
+    final pictureRecorder = dart_ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    const size = Size(100, 100); // Marker size
 
-    // Destination marker
-    _markers.add(
-      Marker(
-        markerId: const MarkerId('destination'),
-        position: LatLng(widget.destinationLat, widget.destinationLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'Lokasi Tujuan'),
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    // Draw icon with distinct color and shadow for visibility
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(iconData.codePoint),
+      style: TextStyle(
+        fontSize: 80, // Larger icon since no background
+        fontFamily: iconData.fontFamily,
+        color: color,
+        shadows: const [
+          Shadow(
+            offset: Offset(2, 2),
+            blurRadius: 3,
+            color: Colors.black38,
+          ),
+        ],
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        (size.width - textPainter.width) / 2,
+        (size.height - textPainter.height) / 2,
       ),
     );
 
-    // Driver marker (if location available)
-    if (_driverLocation != null) {
+    final picture = pictureRecorder.endRecording();
+    final image =
+        await picture.toImage(size.width.toInt(), size.height.toInt());
+    final bytes = await image.toByteData(format: dart_ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+  }
+
+  Future<void> _updateMarkers() async {
+    // Create custom icons
+    final destinationIcon = await _createCustomMarkerBitmap(
+      Icons.place, // Pin icon
+      Colors.red,
+    );
+
+    final driverIcon = await _createCustomMarkerBitmap(
+      Icons.local_shipping, // Truck icon
+      Colors.blue, // Primary color
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _markers.clear();
+
+      // Destination marker
       _markers.add(
         Marker(
-          markerId: const MarkerId('driver'),
-          position: _driverLocation!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: const InfoWindow(title: 'Lokasi Anda'),
+          markerId: const MarkerId('destination'),
+          position: LatLng(widget.destinationLat, widget.destinationLng),
+          icon: destinationIcon,
+          infoWindow: const InfoWindow(title: 'Lokasi Tujuan'),
+          anchor: const Offset(0.5, 0.5), // Center anchor for circular marker
         ),
       );
-    }
 
-    setState(() {});
+      // Driver marker (if location available)
+      if (_driverLocation != null) {
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('driver'),
+            position: _driverLocation!,
+            icon: driverIcon,
+            infoWindow: const InfoWindow(title: 'Posisi Anda'),
+            anchor: const Offset(0.5, 0.5),
+            zIndex: 2, // Map driver on top
+          ),
+        );
+      }
+    });
   }
 
   void _fitBounds() {

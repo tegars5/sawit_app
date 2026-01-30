@@ -5,6 +5,7 @@ import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/models/product.dart';
+import '../../../core/widgets/success_animation.dart';
 
 class AdminProductFormScreen extends StatefulWidget {
   final Product? product; // null for create, non-null for edit
@@ -91,11 +92,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           imageFile: _imageFile,
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Product updated successfully!'),
-              backgroundColor: AppColors.success,
-            ),
+          await SuccessAnimation.show(
+            context: context,
+            message: 'Produk berhasil diperbarui!',
           );
         }
       } else {
@@ -105,11 +104,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           imageFile: _imageFile,
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Product created successfully!'),
-              backgroundColor: AppColors.success,
-            ),
+          await SuccessAnimation.show(
+            context: context,
+            message: 'Produk berhasil ditambahkan!',
           );
         }
       }
@@ -245,9 +242,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
               // Category Dropdown
               DropdownButtonFormField<String>(
-                value: _categoryController.text.isEmpty
-                    ? null
-                    : _categoryController.text,
+                value: ['Premium', 'Standard', 'Economy']
+                        .contains(_categoryController.text)
+                    ? _categoryController.text
+                    : null,
                 decoration: const InputDecoration(
                   labelText: 'Category *',
                   prefixIcon: Icon(Icons.category),
@@ -255,12 +253,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 items: const [
                   DropdownMenuItem(value: 'Premium', child: Text('Premium')),
                   DropdownMenuItem(value: 'Standard', child: Text('Standard')),
-                  DropdownMenuItem(value: 'Grade A', child: Text('Grade A')),
-                  DropdownMenuItem(value: 'Grade B', child: Text('Grade B')),
-                  DropdownMenuItem(value: 'Grade C', child: Text('Grade C')),
-                  DropdownMenuItem(value: 'Organik', child: Text('Organik')),
-                  DropdownMenuItem(
-                      value: 'Non-Organik', child: Text('Non-Organik')),
+                  DropdownMenuItem(value: 'Economy', child: Text('Economy')),
                 ],
                 onChanged: (value) {
                   if (value != null) {
