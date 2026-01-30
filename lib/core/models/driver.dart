@@ -30,7 +30,8 @@ class Driver {
       email: json['email']?.toString() ?? '',
       phone: json['phone']?.toString(),
       vehicleType: json['vehicle_type']?.toString(),
-      vehiclePlate: json['vehicle_plate']?.toString(),
+      vehiclePlate: json['vehicle_number']?.toString() ??
+          json['vehicle_plate']?.toString(),
       availabilityStatus:
           json['availability_status']?.toString() ?? 'available',
     );

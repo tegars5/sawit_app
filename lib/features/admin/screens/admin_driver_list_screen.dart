@@ -5,6 +5,8 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/user.dart';
+import 'admin_driver_form_screen.dart';
+import 'admin_driver_detail_screen.dart';
 
 class AdminDriverListScreen extends StatefulWidget {
   const AdminDriverListScreen({super.key});
@@ -52,6 +54,61 @@ class _AdminDriverListScreenState extends State<AdminDriverListScreen> {
     }
   }
 
+  Future<void> _deleteDriver(User driver) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Driver'),
+        content: Text('Are you sure you want to delete ${driver.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      // ✅ Initialize token before making API call
+      await _apiClient.initializeToken();
+
+      await _apiClient.deleteDriver(driver.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Driver deleted successfully')),
+        );
+        _loadDrivers();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _navigateToForm({User? driver}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminDriverFormScreen(driver: driver),
+      ),
+    );
+
+    if (result == true) {
+      _loadDrivers();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,6 +120,11 @@ class _AdminDriverListScreenState extends State<AdminDriverListScreen> {
             icon: const Icon(Icons.refresh),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _navigateToForm(),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -105,6 +167,18 @@ class _AdminDriverListScreenState extends State<AdminDriverListScreen> {
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
+                              onTap: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        AdminDriverDetailScreen(driver: driver),
+                                  ),
+                                );
+                                if (result == true) {
+                                  _loadDrivers();
+                                }
+                              },
                               leading: CircleAvatar(
                                 backgroundColor: AppColors.primary,
                                 child: Text(
@@ -120,28 +194,69 @@ class _AdminDriverListScreenState extends State<AdminDriverListScreen> {
                                   if (driver.phone != null) Text(driver.phone!),
                                 ],
                               ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: driver.isAvailable
-                                      ? AppColors.success.withOpacity(0.1)
-                                      : AppColors.textSecondary
-                                          .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  driver.isAvailable ? 'Available' : 'Busy',
-                                  style: TextStyle(
-                                    color: driver.isAvailable
-                                        ? AppColors.success
-                                        : AppColors.textSecondary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: driver.isAvailable
+                                          ? AppColors.success
+                                              .withValues(alpha: 0.1)
+                                          : AppColors.textSecondary
+                                              .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      driver.isAvailable ? 'Available' : 'Busy',
+                                      style: TextStyle(
+                                        color: driver.isAvailable
+                                            ? AppColors.success
+                                            : AppColors.textSecondary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        _navigateToForm(driver: driver);
+                                      } else if (value == 'delete') {
+                                        _deleteDriver(driver);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'edit',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit, size: 20),
+                                            SizedBox(width: 8),
+                                            Text('Edit'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete,
+                                                size: 20,
+                                                color: AppColors.error),
+                                            SizedBox(width: 8),
+                                            Text('Delete',
+                                                style: TextStyle(
+                                                    color: AppColors.error)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           );

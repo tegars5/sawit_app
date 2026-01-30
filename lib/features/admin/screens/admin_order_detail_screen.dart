@@ -7,6 +7,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/driver.dart';
 import '../../../core/services/storage_service.dart';
+import '../../mitra/screens/order_tracking_screen.dart';
 
 class AdminOrderDetailScreen extends StatefulWidget {
   final int orderId;
@@ -449,18 +450,43 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           // View Waybill PDF button (if driver assigned)
           if (_order!.deliveryOrder?.driver != null) ...[
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _openWaybillPdf,
-                icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('View Waybill PDF'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _openWaybillPdf,
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('Waybill PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => OrderTrackingScreen(
+                            orderId: _order!.id,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.location_on),
+                    label: const Text('Live Tracking'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],

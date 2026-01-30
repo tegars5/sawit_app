@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user.dart';
@@ -14,6 +15,7 @@ class AuthService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  String? get token => _apiClient.token;
 
   AuthService() {
     _loadUserFromStorage();
@@ -36,7 +38,9 @@ class AuthService extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      print('🔐 LOGIN: Attempting login for $email');
       final AuthResponse response = await _apiClient.login(email, password);
+      print('✅ LOGIN: Success - Token received');
 
       // Save token and user
       await StorageService.saveToken(response.token);
@@ -50,6 +54,7 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      print('❌ LOGIN ERROR: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -118,6 +123,42 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+    }
+  }
+
+  Future<bool> updateProfilePhoto(File? imageFile) async {
+    if (imageFile == null) return false;
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final photoUrl = await _apiClient.updateProfilePhoto(imageFile);
+
+      if (_currentUser != null) {
+        // Create new user object with updated photo
+        _currentUser = User(
+          id: _currentUser!.id,
+          name: _currentUser!.name,
+          email: _currentUser!.email,
+          role: _currentUser!.role,
+          phone: _currentUser!.phone,
+          address: _currentUser!.address,
+          profilePicture: photoUrl,
+          fcmToken: _currentUser!.fcmToken,
+        );
+
+        await StorageService.saveUser(_currentUser!);
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 

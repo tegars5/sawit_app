@@ -12,9 +12,11 @@ import '../models/driver.dart';
 import '../models/paginated_response.dart';
 import '../models/tracking_response.dart';
 import '../models/payment_response.dart';
+import '../models/admin_dashboard_summary.dart';
 
 class ApiClient {
   String? _token;
+  String? get token => _token;
 
   void setToken(String token) {
     _token = token;
@@ -159,6 +161,34 @@ class ApiClient {
     if (response.statusCode != 200) {
       throw _handleError(response);
     }
+  }
+
+  Future<String> updateProfilePhoto(File imageFile) async {
+    // Ensure token is initialized
+    if (_token == null) await initializeToken();
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.baseUrl}/profile/photo'),
+    );
+
+    request.headers.addAll({
+      'Authorization': 'Bearer $_token',
+      'Accept': 'application/json',
+    });
+
+    request.files.add(
+      await http.MultipartFile.fromPath('photo', imageFile.path),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['photo_url'];
+    }
+    throw _handleError(response);
   }
 
   Future<void> updateFcmToken(String fcmToken) async {
@@ -634,6 +664,47 @@ class ApiClient {
     }
   }
 
+  Future<void> createDriver(Map<String, dynamic> data) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers'),
+          headers: _headers,
+          body: jsonEncode(data),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
+  Future<void> updateDriver(int id, Map<String, dynamic> data) async {
+    final response = await http
+        .put(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers/$id'),
+          headers: _headers,
+          body: jsonEncode(data),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
+  Future<void> deleteDriver(int id) async {
+    final response = await http
+        .delete(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers/$id'),
+          headers: _headers,
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
   Future<PaginatedResponse<User>> getDrivers({
     int page = 1,
     int perPage = 15,
@@ -854,5 +925,24 @@ class ApiClient {
     } catch (e) {
       return Exception('Error ${response.statusCode}: ${response.body}');
     }
+  }
+
+  // ========== DASHBOARD API ==========
+
+  Future<AdminDashboardSummary> getAdminDashboardSummary() async {
+    final response = await http
+        .get(
+          Uri.parse('${AppConfig.baseUrl}/admin/dashboard-summary'),
+          headers: _headers,
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 200) {
+      debugPrint('DASHBOARD RESPONSE BODY: ${response.body}');
+      final json = jsonDecode(response.body);
+      final data = json['data'] ?? json;
+      return AdminDashboardSummary.fromJson(data);
+    }
+    throw _handleError(response);
   }
 }

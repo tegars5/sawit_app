@@ -18,6 +18,7 @@ import 'features/admin/screens/admin_home_screen.dart';
 import 'features/admin/screens/admin_driver_list_screen.dart';
 import 'features/admin/screens/admin_product_form_screen.dart';
 import 'features/admin/providers/admin_order_provider.dart';
+import 'features/admin/providers/admin_dashboard_provider.dart';
 import 'features/driver/screens/driver_home_screen.dart';
 import 'features/driver/providers/driver_order_provider.dart';
 import 'core/models/product.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => AdminOrderProvider()),
         ChangeNotifierProvider(create: (_) => DriverOrderProvider()),
+        ChangeNotifierProvider(create: (_) => AdminDashboardProvider()),
       ],
       child: MaterialApp(
         title: 'Cangkang Sawit',

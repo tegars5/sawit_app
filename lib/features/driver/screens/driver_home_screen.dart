@@ -4,6 +4,7 @@ import '../../../config/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../providers/driver_order_provider.dart';
 import 'driver_delivery_list_screen.dart';
+import 'driver_profile_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -18,7 +19,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final List<Widget> _screens = [
     const _DashboardOverview(),
     const DriverDeliveryListScreen(),
-    const _ProfilePlaceholder(),
+    const DriverProfileScreen(),
   ];
 
   @override
@@ -372,102 +373,6 @@ class _ActionButton extends StatelessWidget {
               const Icon(Icons.arrow_forward_ios, size: 16),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfilePlaceholder extends StatelessWidget {
-  const _ProfilePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-    final user = authService.currentUser;
-
-    if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundColor: AppColors.primary,
-              child: Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-            const SizedBox(height: 16),
-            Text(user.name, style: Theme.of(context).textTheme.headlineSmall),
-            Text(user.email, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'DRIVER',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Logout'),
-                        content: const Text('Are you sure you want to logout?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.error,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Logout'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirmed == true && context.mounted) {
-                      await authService.logout();
-                      if (context.mounted) {
-                        Navigator.pushReplacementNamed(context, '/login');
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Logout'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
