@@ -8,7 +8,12 @@ import '../providers/order_provider.dart';
 import 'order_detail_screen.dart';
 
 class OrderListScreen extends StatefulWidget {
-  const OrderListScreen({super.key});
+  final String? initialStatus;
+
+  const OrderListScreen({
+    super.key,
+    this.initialStatus,
+  });
 
   @override
   State<OrderListScreen> createState() => _OrderListScreenState();
@@ -21,6 +26,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedStatus = widget.initialStatus;
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
@@ -31,10 +37,14 @@ class _OrderListScreenState extends State<OrderListScreen> {
     final orderProvider = context.read<OrderProvider>();
 
     // ✅ Get actual token from storage
-    final token = await StorageService.getToken();
+    final token = StorageService.getToken();
     if (token != null) {
       orderProvider.setToken(token);
-      orderProvider.loadOrders(refresh: true);
+      if (widget.initialStatus != null) {
+        orderProvider.filterByStatus(widget.initialStatus);
+      } else {
+        orderProvider.loadOrders(refresh: true);
+      }
     }
   }
 
@@ -68,6 +78,37 @@ class _OrderListScreenState extends State<OrderListScreen> {
     }
   }
 
+  Widget _buildFilterChip(
+      String label, String? status, OrderProvider orderProvider) {
+    final isSelected = _selectedStatus == status;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedStatus = status);
+        orderProvider.filterByStatus(status);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.grey[300]!,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey[700],
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final orderProvider = context.watch<OrderProvider>();
@@ -78,6 +119,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
     );
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('My Orders'),
       ),
@@ -85,59 +127,37 @@ class _OrderListScreenState extends State<OrderListScreen> {
         children: [
           // Status Filter
           Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                FilterChip(
-                  label: const Text('All'),
-                  selected: _selectedStatus == null,
-                  onSelected: (selected) {
-                    setState(() => _selectedStatus = null);
-                    orderProvider.filterByStatus(null);
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Pending'),
-                  selected: _selectedStatus == 'pending',
-                  onSelected: (selected) {
-                    setState(() => _selectedStatus = 'pending');
-                    orderProvider.filterByStatus('pending');
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Confirmed'),
-                  selected: _selectedStatus == 'confirmed',
-                  onSelected: (selected) {
-                    setState(() => _selectedStatus = 'confirmed');
-                    orderProvider.filterByStatus('confirmed');
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('On Delivery'),
-                  selected: _selectedStatus == 'on_delivery',
-                  onSelected: (selected) {
-                    setState(() => _selectedStatus = 'on_delivery');
-                    orderProvider.filterByStatus('on_delivery');
-                  },
-                ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('Completed'),
-                  selected: _selectedStatus == 'completed',
-                  onSelected: (selected) {
-                    setState(() => _selectedStatus = 'completed');
-                    orderProvider.filterByStatus('completed');
-                  },
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
+            child: SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _buildFilterChip('All', null, orderProvider),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Pending', 'pending', orderProvider),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Confirmed', 'confirmed', orderProvider),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('On Delivery', 'on_delivery', orderProvider),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Completed', 'completed', orderProvider),
+                ],
+              ),
+            ),
           ),
-          const Divider(height: 1),
 
           // Orders List
           Expanded(
@@ -256,7 +276,7 @@ class _OrderCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(

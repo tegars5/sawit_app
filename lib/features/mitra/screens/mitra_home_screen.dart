@@ -17,7 +17,8 @@ class _MitraHomeScreenState extends State<MitraHomeScreen> {
   final List<Widget> _screens = [
     const ProductListScreen(),
     const OrderListScreen(),
-    const _TrackingPlaceholder(),
+    const OrderListScreen(
+        initialStatus: 'on_delivery'), // Direct to active deliveries
     const _RewardPlaceholder(),
     const ProfileScreen(),
   ];
@@ -25,59 +26,95 @@ class _MitraHomeScreenState extends State<MitraHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true, // Allow content to go behind FAB notch if needed
       body: _screens[_currentIndex],
-      bottomNavigationBar: Container(
+      floatingActionButton: Container(
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
-          color: Colors.white,
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _currentIndex == 2
+                ? [AppColors.primary, AppColors.primaryLight]
+                : [AppColors.primary, AppColors.primaryLight],
+          ),
+          border: Border.all(color: Colors.white, width: 4),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: AppColors.primary.withOpacity(0.4),
               blurRadius: 20,
-              offset: const Offset(0, -5),
+              offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: SizedBox(
-              height: 60,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Home
-                  _buildNavItem(
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home,
-                    label: 'Home',
-                    index: 0,
-                  ),
-                  // Orders
-                  _buildNavItem(
-                    icon: Icons.receipt_long_outlined,
-                    activeIcon: Icons.receipt_long,
-                    label: 'Orders',
-                    index: 1,
-                  ),
-                  // Tracking (Center - Special)
-                  _buildCenterTrackingButton(),
-                  // Reward
-                  _buildNavItem(
-                    icon: Icons.card_giftcard_outlined,
-                    activeIcon: Icons.card_giftcard,
-                    label: 'Reward',
-                    index: 3,
-                  ),
-                  // Profile
-                  _buildNavItem(
-                    icon: Icons.person_outline,
-                    activeIcon: Icons.person,
-                    label: 'Profile',
-                    index: 4,
-                  ),
-                ],
+        child: FloatingActionButton(
+          onPressed: () => setState(() => _currentIndex = 2),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child:
+              const Icon(Icons.local_shipping, color: Colors.white, size: 32),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        clipBehavior: Clip.antiAlias,
+        elevation: 10,
+        shadowColor: Colors.black.withOpacity(0.2),
+        color: Colors.white,
+        surfaceTintColor: Colors.white, // Material 3 override
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Left Group
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavItem(
+                      icon: Icons.home_outlined,
+                      activeIcon: Icons.home,
+                      label: 'Home',
+                      index: 0,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.receipt_long_outlined,
+                      activeIcon: Icons.receipt_long,
+                      label: 'Orders',
+                      index: 1,
+                    ),
+                  ],
+                ),
               ),
-            ),
+
+              const SizedBox(width: 72), // Spacer for FAB
+
+              // Right Group
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavItem(
+                      icon: Icons.card_giftcard_outlined,
+                      activeIcon: Icons.card_giftcard,
+                      label: 'Reward',
+                      index: 3,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.person_outline,
+                      activeIcon: Icons.person,
+                      label: 'Profile',
+                      index: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -92,145 +129,27 @@ class _MitraHomeScreenState extends State<MitraHomeScreen> {
   }) {
     final isActive = _currentIndex == index;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _currentIndex = index),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isActive ? activeIcon : icon,
-                color: isActive ? AppColors.primary : Colors.grey[400],
-                size: 22,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: isActive ? AppColors.primary : Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCenterTrackingButton() {
-    final isActive = _currentIndex == 2;
-
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = 2),
-      child: Container(
-        width: 72,
-        height: 72,
-        margin: const EdgeInsets.only(
-          left: 10,
-          right: 10,
-          bottom: 24, // Raise button up more
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isActive
-                ? [
-                    AppColors.primary,
-                    AppColors.primaryLight,
-                  ]
-                : [
-                    AppColors.primary.withOpacity(0.8),
-                    AppColors.primaryLight.withOpacity(0.8),
-                  ],
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.5),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.local_shipping,
-          color: Colors.white,
-          size: 32,
-        ),
-      ),
-    );
-  }
-}
-
-// Tracking Placeholder Screen
-class _TrackingPlaceholder extends StatelessWidget {
-  const _TrackingPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Order Tracking'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Center(
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = index),
+      customBorder: const CircleBorder(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.local_shipping,
-                size: 60,
-                color: AppColors.primary,
-              ),
+            Icon(
+              isActive ? activeIcon : icon,
+              color: isActive ? AppColors.primary : Colors.grey[400],
+              size: 24,
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Track Your Orders',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
-              'Real-time tracking for your deliveries',
+              label,
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Navigate to tracking screen
-              },
-              icon: const Icon(Icons.location_on),
-              label: const Text('View Active Deliveries'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: isActive ? AppColors.primary : Colors.grey[600],
               ),
             ),
           ],
