@@ -162,6 +162,19 @@ class ApiClient {
     throw _handleError(response);
   }
 
+  /// Update FCM Token
+  Future<void> updateFcmToken(String fcmToken) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/fcm-token'),
+      headers: _headers,
+      body: jsonEncode({'fcm_token': fcmToken}),
+    );
+
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
   // ========== PROFILE APIs ==========
 
   Future<User> getProfile() async {
@@ -234,16 +247,6 @@ class ApiClient {
       return json['photo_url'];
     }
     throw _handleError(response);
-  }
-
-  Future<void> updateFcmToken(String fcmToken) async {
-    await http
-        .post(
-          Uri.parse('${AppConfig.baseUrl}/fcm-token'),
-          headers: _headers,
-          body: jsonEncode({'fcm_token': fcmToken}),
-        )
-        .timeout(Duration(seconds: AppConfig.requestTimeout));
   }
 
   // ========== PRODUCT APIs ==========

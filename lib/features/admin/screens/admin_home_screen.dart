@@ -23,6 +23,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     const AdminProfileScreen(),
   ];
 
+  // Import NotificationService at the top of the file, or use full path here if import is tricky.
+  // Since I can't see imports easily without scrolling up, I will use dynamic import or just add import.
+  // Wait, I can see imports in lines 1-8. I should add import there.
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

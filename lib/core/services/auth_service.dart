@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../models/user.dart';
 import '../models/auth_response.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -52,6 +53,12 @@ class AuthService extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      _isLoading = false;
+      notifyListeners();
+
+      // Sync FCM Token
+      NotificationService.syncToken();
+
       return true;
     } catch (e) {
       print('❌ LOGIN ERROR: $e');
