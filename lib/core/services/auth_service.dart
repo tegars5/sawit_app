@@ -126,6 +126,13 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Update current user and save to storage
+  void updateUser(User user) {
+    _currentUser = user;
+    StorageService.saveUser(user);
+    notifyListeners();
+  }
+
   Future<bool> updateProfilePhoto(File? imageFile) async {
     if (imageFile == null) return false;
 

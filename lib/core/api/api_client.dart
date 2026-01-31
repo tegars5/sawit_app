@@ -13,6 +13,7 @@ import '../models/paginated_response.dart';
 import '../models/tracking_response.dart';
 import '../models/payment_response.dart';
 import '../models/admin_dashboard_summary.dart';
+import '../models/admin_report.dart';
 
 class ApiClient {
   String? _token;
@@ -115,6 +116,50 @@ class ApiClient {
           headers: _headers,
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
+  }
+
+  /// Upload profile photo
+  /// Returns the full URL of the uploaded photo
+  Future<String> uploadProfilePhoto(File imageFile) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/profile/photo');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Add authorization header
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+
+    // Add image file
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'photo',
+        imageFile.path,
+      ),
+    );
+
+    final streamedResponse = await request
+        .send()
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      var url = json['data']['profile_picture_url'] as String;
+
+      // Ensure URL is absolute http/https
+      if (!url.startsWith('http')) {
+        if (url.startsWith('file:///')) {
+          url = url.replaceFirst('file:///', '');
+        }
+        if (url.startsWith('/')) {
+          url = url.substring(1);
+        }
+        final base = AppConfig.baseUrl.replaceAll('/api', '');
+        return '$base/storage/$url';
+      }
+      return url;
+    }
+    throw _handleError(response);
   }
 
   // ========== PROFILE APIs ==========
@@ -942,6 +987,29 @@ class ApiClient {
       final json = jsonDecode(response.body);
       final data = json['data'] ?? json;
       return AdminDashboardSummary.fromJson(data);
+    }
+    throw _handleError(response);
+  }
+
+  // ========== REPORTS API ==========
+
+  Future<AdminReport> getAdminReports(String period, {String? date}) async {
+    final queryParams = <String, String>{
+      'period': period,
+      if (date != null) 'date': date,
+    };
+
+    final uri = Uri.parse('${AppConfig.baseUrl}/admin/reports')
+        .replace(queryParameters: queryParams);
+
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      final data = json['data'] ?? json;
+      return AdminReport.fromJson(data);
     }
     throw _handleError(response);
   }

@@ -1,3 +1,5 @@
+import '../../config/app_config.dart';
+
 class User {
   final int id;
   final String name;
@@ -39,6 +41,25 @@ class User {
       return int.tryParse(value.toString()) ?? defaultValue;
     }
 
+    String? parseProfileUrl(String? url) {
+      if (url == null) return null;
+      if (url.startsWith('http')) return url;
+
+      var cleanPath = url;
+      // Handle file:/// prefix
+      if (cleanPath.startsWith('file:///')) {
+        cleanPath = cleanPath.replaceFirst('file:///', '');
+      }
+      // Remove leading slash
+      if (cleanPath.startsWith('/')) {
+        cleanPath = cleanPath.substring(1);
+      }
+
+      final base = AppConfig.baseUrl.replaceAll('/api', '');
+      // Assuming standard Laravel storage link
+      return '$base/storage/$cleanPath';
+    }
+
     return User(
       id: toInt(json['id'], 0),
       name: json['name']?.toString() ?? '',
@@ -47,13 +68,18 @@ class User {
           'mitra', // ✅ Default to 'mitra' if not provided
       phone: json['phone']?.toString(),
       address: json['address']?.toString(),
-      profilePicture: json['profile_picture']?.toString(),
+      profilePicture: parseProfileUrl(json['profile_picture']?.toString() ??
+          json['profile_photo']?.toString()),
       fcmToken: json['fcm_token']?.toString(),
       token: json['token']?.toString(),
       vehicleType: json['vehicle_type']?.toString(),
       vehiclePlate: json['vehicle_number']?.toString() ??
           json['vehicle_plate']?.toString(),
-      isAvailable: json['is_available'] == 1 ||
+      // ✅ Parse availability from multiple possible fields
+      // Backend sends 'availability_status' with values: 'available' or 'busy'
+      // Some endpoints might still send 'is_available' as boolean
+      isAvailable: json['availability_status'] == 'available' ||
+          json['is_available'] == 1 ||
           json['is_available'] == true ||
           json['is_available'] == 'available',
       createdAt: json['created_at'] != null

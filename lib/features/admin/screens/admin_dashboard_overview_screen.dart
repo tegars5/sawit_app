@@ -1,13 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:lottie/lottie.dart';
 import '../../../config/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/api/api_client.dart';
 import '../providers/admin_dashboard_provider.dart';
 import 'admin_driver_list_screen.dart';
 import 'admin_order_list_screen.dart';
 import 'admin_fleet_tracking_screen.dart';
 import 'admin_product_list_screen.dart';
+import 'admin_reports_screen.dart';
 import 'dart:math' as math;
 
 class AdminDashboardOverviewScreen extends StatefulWidget {
@@ -36,6 +41,132 @@ class _AdminDashboardOverviewScreenState
     });
   }
 
+  Future<void> _showPhotoOptions(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Camera'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await picker.pickImage(
+                  source: ImageSource.camera,
+                  maxWidth: 800,
+                  imageQuality: 85,
+                );
+                if (image != null && mounted) {
+                  await _uploadPhoto(File(image.path));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 800,
+                  imageQuality: 85,
+                );
+                if (image != null && mounted) {
+                  await _uploadPhoto(File(image.path));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadPhoto(File imageFile) async {
+    try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading photo...')),
+      );
+
+      final apiClient = ApiClient();
+      await apiClient.initializeToken();
+      final photoUrl = await apiClient.uploadProfilePhoto(imageFile);
+
+      if (mounted) {
+        final authService = context.read<AuthService>();
+        final updatedUser = authService.currentUser!.copyWith(
+          profilePicture: photoUrl,
+        );
+        authService.updateUser(updatedUser);
+
+        // Show success animation
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photo: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Lottie.asset(
+                'assets/animations/success.json',
+                width: 150,
+                height: 150,
+                repeat: false,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Success!',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Profile photo updated successfully',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Auto close after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
@@ -58,17 +189,40 @@ class _AdminDashboardOverviewScreenState
                   Expanded(
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.1),
-                          backgroundImage: user.profilePicture != null
-                              ? NetworkImage(user.profilePicture!)
-                              : null,
-                          child: user.profilePicture == null
-                              ? const Icon(Icons.person,
-                                  color: AppColors.primary)
-                              : null,
+                        GestureDetector(
+                          onTap: () => _showPhotoOptions(context),
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor:
+                                    AppColors.primary.withValues(alpha: 0.1),
+                                backgroundImage: user.profilePicture != null
+                                    ? NetworkImage(user.profilePicture!)
+                                    : null,
+                                child: user.profilePicture == null
+                                    ? const Icon(Icons.person,
+                                        color: AppColors.primary)
+                                    : null,
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -197,7 +351,80 @@ class _AdminDashboardOverviewScreenState
 
               const SizedBox(height: 24),
 
-              // 3. Simple Chart Section
+              // 3. Tindakan Cepat (Quick Actions)
+              const Text(
+                'Tindakan Cepat',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildQuickActionCard(
+                    context,
+                    icon: Icons.add_circle,
+                    label: 'Order Baru',
+                    color: AppColors.primary,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminOrderListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickActionCard(
+                    context,
+                    icon: Icons.person_add,
+                    label: 'Add Driver',
+                    color: Colors.blue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminDriverListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickActionCard(
+                    context,
+                    icon: Icons.inventory,
+                    label: 'Cek Stok',
+                    color: Colors.orange,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminProductListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickActionCard(
+                    context,
+                    icon: Icons.assessment,
+                    label: 'Laporan',
+                    color: Colors.purple,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminReportsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // 4. Simple Chart Section
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -424,9 +651,9 @@ class _AdminDashboardOverviewScreenState
                       children: [
                         // Real Map Background (Lite Mode)
                         IgnorePointer(
-                          child: GoogleMap(
-                            initialCameraPosition: const CameraPosition(
-                              target: LatLng(
+                          child: gmaps.GoogleMap(
+                            initialCameraPosition: const gmaps.CameraPosition(
+                              target: gmaps.LatLng(
                                   -6.175392, 106.827153), // Monas (Default)
                               zoom: 12,
                             ),
@@ -450,17 +677,17 @@ class _AdminDashboardOverviewScreenState
                             },
                             markers: (summary?.activeFleetLocations ?? [])
                                     .isEmpty
-                                ? <Marker>{}
+                                ? <gmaps.Marker>{}
                                 : summary!.activeFleetLocations.map((driver) {
-                                    return Marker(
-                                      markerId:
-                                          MarkerId('driver_${driver.driverId}'),
-                                      position: LatLng(
+                                    return gmaps.Marker(
+                                      markerId: gmaps.MarkerId(
+                                          'driver_${driver.driverId}'),
+                                      position: gmaps.LatLng(
                                           driver.latitude, driver.longitude),
-                                      icon:
-                                          BitmapDescriptor.defaultMarkerWithHue(
-                                              BitmapDescriptor
-                                                  .hueOrange), // Orange fleet
+                                      icon: gmaps.BitmapDescriptor
+                                          .defaultMarkerWithHue(gmaps
+                                              .BitmapDescriptor
+                                              .hueOrange), // Orange fleet
                                     );
                                   }).toSet(),
                           ),
@@ -767,6 +994,44 @@ class _AdminDashboardOverviewScreenState
               fontWeight: FontWeight.w500,
               color: Colors.black87,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

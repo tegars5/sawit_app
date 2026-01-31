@@ -181,10 +181,16 @@ class _AdminDriverListScreenState extends State<AdminDriverListScreen> {
                               },
                               leading: CircleAvatar(
                                 backgroundColor: AppColors.primary,
-                                child: Text(
-                                  driver.name[0].toUpperCase(),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
+                                backgroundImage: driver.profilePicture != null
+                                    ? NetworkImage(driver.profilePicture!)
+                                    : null,
+                                child: driver.profilePicture == null
+                                    ? Text(
+                                        driver.name[0].toUpperCase(),
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                      )
+                                    : null,
                               ),
                               title: Text(driver.name),
                               subtitle: Column(

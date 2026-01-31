@@ -95,13 +95,14 @@ class Order {
       hasWaybillFromApi: json['has_waybill'] as bool?,
 
       cancelledAt: json['cancelled_at'] != null
-          ? DateTime.tryParse(json['cancelled_at'].toString())
+          ? DateTime.tryParse(json['cancelled_at'].toString())?.toLocal()
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(json['created_at'].toString())?.toLocal() ??
+              DateTime.now())
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'].toString())
+          ? DateTime.tryParse(json['updated_at'].toString())?.toLocal()
           : null,
       orderItems: json['order_items'] != null
           ? (json['order_items'] as List)

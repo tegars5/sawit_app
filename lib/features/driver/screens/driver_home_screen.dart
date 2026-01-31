@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:lottie/lottie.dart';
 import '../../../config/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/api/api_client.dart';
 import '../providers/driver_order_provider.dart';
 import 'driver_delivery_list_screen.dart';
 import 'driver_profile_screen.dart';
@@ -78,6 +82,134 @@ class _DashboardOverviewState extends State<_DashboardOverview> {
     }
   }
 
+  Future<void> _showPhotoOptions(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Camera'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await picker.pickImage(
+                  source: ImageSource.camera,
+                  maxWidth: 800,
+                  imageQuality: 85,
+                );
+                if (image != null && mounted) {
+                  await _uploadPhoto(File(image.path));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 800,
+                  imageQuality: 85,
+                );
+                if (image != null && mounted) {
+                  await _uploadPhoto(File(image.path));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadPhoto(File imageFile) async {
+    try {
+      // Show loading
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading photo...')),
+      );
+
+      final apiClient = ApiClient();
+      await apiClient.initializeToken();
+      final photoUrl = await apiClient.uploadProfilePhoto(imageFile);
+
+      // Update user in AuthService
+      if (mounted) {
+        final authService = context.read<AuthService>();
+        final updatedUser = authService.currentUser!.copyWith(
+          profilePicture: photoUrl,
+        );
+        authService.updateUser(updatedUser);
+
+        // Show success animation
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photo: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Lottie.asset(
+                'assets/animations/success.json',
+                width: 150,
+                height: 150,
+                repeat: false,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Success!',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Profile photo updated successfully',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Auto close after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
@@ -111,11 +243,39 @@ class _DashboardOverviewState extends State<_DashboardOverview> {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    const CircleAvatar(
-                      radius: 30,
-                      backgroundColor: AppColors.primary,
-                      child: Icon(Icons.local_shipping,
-                          size: 30, color: Colors.white),
+                    GestureDetector(
+                      onTap: () => _showPhotoOptions(context),
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: AppColors.primary,
+                            backgroundImage: user.profilePicture != null
+                                ? NetworkImage(user.profilePicture!)
+                                : null,
+                            child: user.profilePicture == null
+                                ? const Icon(Icons.local_shipping,
+                                    size: 30, color: Colors.white)
+                                : null,
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(

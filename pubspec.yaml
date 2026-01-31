@@ -38,6 +38,7 @@ dependencies:
   # UI Enhancements
   shimmer: ^3.0.0
   flutter_svg: ^2.0.9
+  fl_chart: ^0.69.0
 
   # Communication
   url_launcher: ^6.2.2
