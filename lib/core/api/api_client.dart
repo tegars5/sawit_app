@@ -12,9 +12,12 @@ import '../models/driver.dart';
 import '../models/paginated_response.dart';
 import '../models/tracking_response.dart';
 import '../models/payment_response.dart';
+import '../models/admin_dashboard_summary.dart';
+import '../models/admin_report.dart';
 
 class ApiClient {
   String? _token;
+  String? get token => _token;
 
   void setToken(String token) {
     _token = token;
@@ -52,12 +55,22 @@ class ApiClient {
 
   // ========== AUTH APIs ==========
 
-  Future<AuthResponse> register(Map<String, dynamic> data) async {
+  Future<AuthResponse> register({
+    required String name,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
     final response = await http
         .post(
           Uri.parse('${AppConfig.baseUrl}/register'),
           headers: _headers,
-          body: jsonEncode(data),
+          body: jsonEncode({
+            'name': name,
+            'email': email,
+            'password': password,
+            'password_confirmation': passwordConfirmation,
+          }),
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 
@@ -103,6 +116,63 @@ class ApiClient {
           headers: _headers,
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
+  }
+
+  /// Upload profile photo
+  /// Returns the full URL of the uploaded photo
+  Future<String> uploadProfilePhoto(File imageFile) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/profile/photo');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Add authorization header
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+
+    // Add image file
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'photo',
+        imageFile.path,
+      ),
+    );
+
+    final streamedResponse = await request
+        .send()
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      var url = json['data']['profile_picture_url'] as String;
+
+      // Ensure URL is absolute http/https
+      if (!url.startsWith('http')) {
+        if (url.startsWith('file:///')) {
+          url = url.replaceFirst('file:///', '');
+        }
+        if (url.startsWith('/')) {
+          url = url.substring(1);
+        }
+        final base = AppConfig.baseUrl.replaceAll('/api', '');
+        return '$base/storage/$url';
+      }
+      return url;
+    }
+    throw _handleError(response);
+  }
+
+  /// Update FCM Token
+  Future<void> updateFcmToken(String fcmToken) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.baseUrl}/fcm-token'),
+      headers: _headers,
+      body: jsonEncode({'fcm_token': fcmToken}),
+    );
+
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
   }
 
   // ========== PROFILE APIs ==========
@@ -151,14 +221,32 @@ class ApiClient {
     }
   }
 
-  Future<void> updateFcmToken(String fcmToken) async {
-    await http
-        .post(
-          Uri.parse('${AppConfig.baseUrl}/fcm-token'),
-          headers: _headers,
-          body: jsonEncode({'fcm_token': fcmToken}),
-        )
-        .timeout(Duration(seconds: AppConfig.requestTimeout));
+  Future<String> updateProfilePhoto(File imageFile) async {
+    // Ensure token is initialized
+    if (_token == null) await initializeToken();
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.baseUrl}/profile/photo'),
+    );
+
+    request.headers.addAll({
+      'Authorization': 'Bearer $_token',
+      'Accept': 'application/json',
+    });
+
+    request.files.add(
+      await http.MultipartFile.fromPath('photo', imageFile.path),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['photo_url'];
+    }
+    throw _handleError(response);
   }
 
   // ========== PRODUCT APIs ==========
@@ -201,7 +289,7 @@ class ApiClient {
       if (maxPrice != null) 'max_price': maxPrice.toString(),
     };
 
-    final uri = Uri.parse('${AppConfig.baseUrl}/products/search')
+    final uri = Uri.parse('${AppConfig.baseUrl}/products')
         .replace(queryParameters: queryParams);
 
     final response = await http
@@ -238,7 +326,7 @@ class ApiClient {
   }) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('${AppConfig.baseUrl}/products'),
+      Uri.parse('${AppConfig.baseUrl}/admin/products'),
     );
 
     request.headers.addAll({
@@ -274,17 +362,16 @@ class ApiClient {
     Map<String, dynamic> productData, {
     File? imageFile,
   }) async {
-    // Use POST with _method=PUT for multipart compatibility
+    // Use POST for multipart compatibility
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('${AppConfig.baseUrl}/products/$productId'),
+      Uri.parse('${AppConfig.baseUrl}/admin/products/$productId'),
     );
 
     request.headers.addAll({
       'Authorization': _headers['Authorization'] ?? '',
       'Accept': 'application/json',
     });
-
     // Add product data
     request.fields['name'] = productData['name'].toString();
     request.fields['description'] = productData['description'].toString();
@@ -312,7 +399,7 @@ class ApiClient {
   Future<void> deleteProduct(int productId) async {
     final response = await http
         .delete(
-          Uri.parse('${AppConfig.baseUrl}/products/$productId'),
+          Uri.parse('${AppConfig.baseUrl}/admin/products/$productId'),
           headers: _headers,
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
@@ -484,37 +571,29 @@ class ApiClient {
     throw _handleError(response);
   }
 
-  /// Assign driver to order with optional waybill PDF
-  Future<Order> assignDriver(int orderId, int driverId,
-      [String? pdfFilePath]) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/assign-driver'),
-    );
+  /// Assign driver to order (Auto-generate waybill PDF)
+  ///
+  /// ✅ UPDATED: No PDF upload required, backend auto-generates from database
+  /// Backend: POST /api/admin/orders/{orderId}/assign-driver
+  /// Body: { "driver_id": int }
+  Future<Order> assignDriver(int orderId, int driverId) async {
+    // Ensure token is initialized
+    if (_token == null) await initializeToken();
 
-    request.headers.addAll({
-      if (_token != null) 'Authorization': 'Bearer $_token',
-      'Accept': 'application/json',
-    });
-
-    request.fields['driver_id'] = driverId.toString();
-
-    if (pdfFilePath != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('waybill_pdf', pdfFilePath),
-      );
-    }
-
-    final streamedResponse = await request.send().timeout(
-          Duration(seconds: AppConfig.requestTimeout),
-        );
-
-    final response = await http.Response.fromStream(streamedResponse);
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/assign-driver'),
+          headers: _headers,
+          body: jsonEncode({
+            'driver_id': driverId,
+          }),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
 
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
 
-      // Perbaikan di sini: Cek satu per satu agar tidak kena error 'Null'
+      // Check response structure
       if (jsonData != null) {
         if (jsonData['data'] != null) {
           return Order.fromJson(jsonData['data']);
@@ -523,7 +602,7 @@ class ApiClient {
         }
       }
 
-      // Jika data tidak ditemukan di response, kita muat ulang data lokal saja
+      // If data not found in response, reload order
       throw Exception('Data order tidak ditemukan dalam respon server');
     }
 
@@ -624,6 +703,47 @@ class ApiClient {
     final response = await http
         .post(
           Uri.parse('${AppConfig.baseUrl}/admin/orders/$orderId/approve'),
+          headers: _headers,
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
+  Future<void> createDriver(Map<String, dynamic> data) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers'),
+          headers: _headers,
+          body: jsonEncode(data),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
+  Future<void> updateDriver(int id, Map<String, dynamic> data) async {
+    final response = await http
+        .put(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers/$id'),
+          headers: _headers,
+          body: jsonEncode(data),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
+  Future<void> deleteDriver(int id) async {
+    final response = await http
+        .delete(
+          Uri.parse('${AppConfig.baseUrl}/admin/drivers/$id'),
           headers: _headers,
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
@@ -793,16 +913,26 @@ class ApiClient {
   }
 
   /// Update driver location for real-time tracking (Driver App)
-  /// Endpoint: POST /api/orders/{orderId}/update-location
+  /// Update driver location during delivery
+  ///
+  /// ✅ FIXED: Changed endpoint to match backend driver tracking route
+  /// Backend: POST /api/driver/orders/{id}/track (DriverOrderController@track)
+  /// This endpoint saves tracking history to delivery_tracks table
+  ///
+  /// Endpoint: POST /api/driver/orders/{orderId}/track
   /// Body: { "lat": double, "lng": double }
   Future<void> updateOrderLocation({
     required int orderId,
     required double lat,
     required double lng,
   }) async {
+    // Ensure token is initialized
+    if (_token == null) await initializeToken();
+
     final response = await http
         .post(
-          Uri.parse('${AppConfig.baseUrl}/orders/$orderId/update-location'),
+          // ✅ Use driver-specific endpoint that records tracking history
+          Uri.parse('${AppConfig.baseUrl}/driver/orders/$orderId/track'),
           headers: _headers,
           body: jsonEncode({
             'lat': lat,
@@ -843,5 +973,47 @@ class ApiClient {
     } catch (e) {
       return Exception('Error ${response.statusCode}: ${response.body}');
     }
+  }
+
+  // ========== DASHBOARD API ==========
+
+  Future<AdminDashboardSummary> getAdminDashboardSummary() async {
+    final response = await http
+        .get(
+          Uri.parse('${AppConfig.baseUrl}/admin/dashboard-summary'),
+          headers: _headers,
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 200) {
+      debugPrint('DASHBOARD RESPONSE BODY: ${response.body}');
+      final json = jsonDecode(response.body);
+      final data = json['data'] ?? json;
+      return AdminDashboardSummary.fromJson(data);
+    }
+    throw _handleError(response);
+  }
+
+  // ========== REPORTS API ==========
+
+  Future<AdminReport> getAdminReports(String period, {String? date}) async {
+    final queryParams = <String, String>{
+      'period': period,
+      if (date != null) 'date': date,
+    };
+
+    final uri = Uri.parse('${AppConfig.baseUrl}/admin/reports')
+        .replace(queryParameters: queryParams);
+
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      final data = json['data'] ?? json;
+      return AdminReport.fromJson(data);
+    }
+    throw _handleError(response);
   }
 }

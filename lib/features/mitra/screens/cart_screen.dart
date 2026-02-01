@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../config/theme.dart';
@@ -104,10 +105,30 @@ class CartScreen extends StatelessWidget {
                                   color: AppColors.surfaceVariant,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(
-                                  Icons.eco,
-                                  color: AppColors.primary,
-                                ),
+                                child: (item.product.primaryImage != null &&
+                                        item.product.primaryImage!.isNotEmpty)
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: CachedNetworkImage(
+                                          imageUrl: item.product.primaryImage!,
+                                          fit: BoxFit.cover,
+                                          placeholder: (context, url) =>
+                                              const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) =>
+                                              const Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: AppColors.textHint,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.eco,
+                                        color: AppColors.primary,
+                                      ),
                               ),
                               const SizedBox(width: 12),
 

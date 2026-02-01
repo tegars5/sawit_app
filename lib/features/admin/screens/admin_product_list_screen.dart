@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
-import '../../../core/services/auth_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/product.dart';
-import '../../../core/models/paginated_response.dart';
+import '../../../core/widgets/success_animation.dart';
 
 class AdminProductListScreen extends StatefulWidget {
   const AdminProductListScreen({super.key});
@@ -329,11 +327,9 @@ class _AdminProductListScreenState extends State<AdminProductListScreen> {
       await _apiClient.deleteProduct(product.id);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product deleted successfully!'),
-            backgroundColor: AppColors.success,
-          ),
+        await SuccessAnimation.show(
+          context: context,
+          message: 'Produk berhasil dihapus!',
         );
         _loadProducts(refresh: true);
       }

@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user.dart';
 import '../models/auth_response.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -14,6 +16,7 @@ class AuthService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  String? get token => _apiClient.token;
 
   AuthService() {
     _loadUserFromStorage();
@@ -36,7 +39,9 @@ class AuthService extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      print('🔐 LOGIN: Attempting login for $email');
       final AuthResponse response = await _apiClient.login(email, password);
+      print('✅ LOGIN: Success - Token received');
 
       // Save token and user
       await StorageService.saveToken(response.token);
@@ -48,8 +53,15 @@ class AuthService extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      _isLoading = false;
+      notifyListeners();
+
+      // Sync FCM Token
+      NotificationService.syncToken();
+
       return true;
     } catch (e) {
+      print('❌ LOGIN ERROR: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -57,13 +69,23 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(Map<String, dynamic> data) async {
+  Future<bool> register(
+    String name,
+    String email,
+    String password,
+    String passwordConfirmation,
+  ) async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      final AuthResponse response = await _apiClient.register(data);
+      final AuthResponse response = await _apiClient.register(
+        name: name,
+        email: email,
+        password: password,
+        passwordConfirmation: passwordConfirmation,
+      );
 
       // Save token and user
       await StorageService.saveToken(response.token);
@@ -108,6 +130,49 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+    }
+  }
+
+  /// Update current user and save to storage
+  void updateUser(User user) {
+    _currentUser = user;
+    StorageService.saveUser(user);
+    notifyListeners();
+  }
+
+  Future<bool> updateProfilePhoto(File? imageFile) async {
+    if (imageFile == null) return false;
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final photoUrl = await _apiClient.updateProfilePhoto(imageFile);
+
+      if (_currentUser != null) {
+        // Create new user object with updated photo
+        _currentUser = User(
+          id: _currentUser!.id,
+          name: _currentUser!.name,
+          email: _currentUser!.email,
+          role: _currentUser!.role,
+          phone: _currentUser!.phone,
+          address: _currentUser!.address,
+          profilePicture: photoUrl,
+          fcmToken: _currentUser!.fcmToken,
+        );
+
+        await StorageService.saveUser(_currentUser!);
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 

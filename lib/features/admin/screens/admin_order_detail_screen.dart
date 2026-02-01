@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:file_picker/file_picker.dart';
+// ✅ REMOVED: file_picker import (no longer needed with auto-generate PDF)
 import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/driver.dart';
 import '../../../core/services/storage_service.dart';
+import '../../mitra/screens/order_tracking_screen.dart';
 
 class AdminOrderDetailScreen extends StatefulWidget {
   final int orderId;
@@ -25,8 +26,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   String? _error;
 
   // PDF selection state
-  String? _selectedPdfPath;
-  String? _selectedPdfName;
+  // ✅ REMOVED: PDF upload no longer required (auto-generate from backend)
+  // String? _selectedPdfPath;
+  // String? _selectedPdfName;
 
   @override
   void initState() {
@@ -448,18 +450,43 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           // View Waybill PDF button (if driver assigned)
           if (_order!.deliveryOrder?.driver != null) ...[
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _openWaybillPdf,
-                icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('View Waybill PDF'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _openWaybillPdf,
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('Waybill PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => OrderTrackingScreen(
+                            orderId: _order!.id,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.location_on),
+                    label: const Text('Live Tracking'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -554,51 +581,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     }
   }
 
-  // Pick PDF file for waybill
-  Future<void> _pickPdfFile() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-      );
-
-      if (result != null && result.files.single.path != null) {
-        // Check file size (5MB limit)
-        if (result.files.single.size > 5 * 1024 * 1024) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('File terlalu besar! Maksimal 5MB'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-
-        setState(() {
-          _selectedPdfPath = result.files.single.path;
-          _selectedPdfName = result.files.single.name;
-        });
-
-        print(
-            '✅ PDF selected: $_selectedPdfName (${(result.files.single.size / 1024).toStringAsFixed(2)} KB)');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error selecting file: $e')),
-      );
-    }
-  }
+  // ✅ REMOVED: _pickPdfFile() method - PDF now auto-generated from backend
+  // No longer need file picker for waybill
 
   // Confirm driver assignment
   Future<void> _confirmAssignDriver(Driver driver) async {
-    // Reset selected PDF
-    setState(() {
-      _selectedPdfPath = null;
-      _selectedPdfName = null;
-    });
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -616,45 +603,31 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                 'Upload Waybill PDF:',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await _pickPdfFile();
-                  setDialogState(() {}); // Refresh dialog
-                },
-                icon: const Icon(Icons.upload_file),
-                label: Text(
-                  _selectedPdfName ?? 'Select PDF File',
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 16),
+              // ✅ Info: PDF auto-generated
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.all(12),
-                ),
-              ),
-              if (_selectedPdfName != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle,
-                          color: Colors.green, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedPdfName!,
-                          style: const TextStyle(fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade700),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Surat jalan akan dibuat otomatis dari data order',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade900,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
           actions: [
@@ -663,9 +636,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: _selectedPdfPath != null
-                  ? () => Navigator.pop(context, true)
-                  : null, // Disable if no PDF selected
+              onPressed: () => Navigator.pop(context, true),
               child: const Text('Assign'),
             ),
           ],
@@ -673,7 +644,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       ),
     );
 
-    if (confirmed == true && _selectedPdfPath != null) {
+    // ✅ UPDATED: No PDF required, backend auto-generates
+    if (confirmed == true) {
       await _assignDriver(driver.id);
     }
   }
@@ -683,25 +655,23 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Assign driver with PDF
+      // ✅ Assign driver (waybill auto-generated by backend)
       await _apiClient.assignDriver(
         _order!.id,
         driverId,
-        _selectedPdfPath, // Pass PDF path
       );
 
       // Reload order detail to get complete data (including order_items)
       await _loadOrderDetail();
 
-      setState(() {
-        _selectedPdfPath = null; // Clear after success
-        _selectedPdfName = null;
-      });
+      // ✅ No PDF state to clear anymore
+      setState(() {});
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Driver assigned and waybill uploaded successfully'),
+          content:
+              Text('Driver assigned successfully. Waybill auto-generated.'),
           backgroundColor: Colors.green,
         ),
       );

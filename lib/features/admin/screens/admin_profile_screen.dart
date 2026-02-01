@@ -6,14 +6,14 @@ import 'package:image_picker/image_picker.dart';
 import '../../../config/theme.dart';
 import '../../../core/services/auth_service.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class AdminProfileScreen extends StatefulWidget {
+  const AdminProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<AdminProfileScreen> createState() => _AdminProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Future<void> _pickImage(BuildContext context) async {
     final authService = context.read<AuthService>();
     final picker = ImagePicker();

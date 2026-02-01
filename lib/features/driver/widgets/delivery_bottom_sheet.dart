@@ -8,26 +8,27 @@ import 'swipe_complete_button.dart';
 class DeliveryBottomSheet extends StatelessWidget {
   final Order order;
   final Future<void> Function() onComplete;
-  final VoidCallback? onViewWaybill;
+  final Function(String status)? onUpdateStatus;
+  // ✅ REMOVED: onViewWaybill callback (waybill no longer accessible)
+  final ScrollController? scrollController;
 
   const DeliveryBottomSheet({
     super.key,
     required this.order,
     required this.onComplete,
-    this.onViewWaybill,
+    this.onUpdateStatus,
+    // ✅ REMOVED: onViewWaybill parameter
+    this.scrollController,
   });
 
   String _getTotalWeight() {
     if (order.orderItems == null || order.orderItems!.isEmpty) {
       return '-';
     }
-
     double totalWeight = 0;
     for (var item in order.orderItems!) {
-      // Assuming each item quantity represents tons
       totalWeight += item.quantity;
     }
-
     return '${totalWeight.toStringAsFixed(1)} Ton';
   }
 
@@ -35,44 +36,31 @@ class DeliveryBottomSheet extends StatelessWidget {
     if (order.orderItems == null || order.orderItems!.isEmpty) {
       return 'Cangkang Sawit';
     }
-
     return order.orderItems!.first.product?.name ?? 'Cangkang Sawit';
   }
 
   String _getEstimatedTime() {
-    if (order.estimatedMinutes == null) {
-      return '-';
-    }
-
+    if (order.estimatedMinutes == null) return '-';
     final now = DateTime.now();
     final eta = now.add(Duration(minutes: order.estimatedMinutes!));
     return DateFormat('HH:mm').format(eta) + ' WIB';
   }
 
-  String _getRemainingTime() {
-    if (order.estimatedMinutes == null) {
-      return '-';
-    }
-
-    return '~${order.estimatedMinutes} Menit lagi';
-  }
-
   Future<void> _makePhoneCall(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) return;
-
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
     }
   }
 
-  Future<void> _openChat() async {
-    // TODO: Implement chat functionality
-    // For now, just show a message
+  Future<void> _openMaps() async {
+    // Open Google Maps
+    final url = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${order.destinationLat},${order.destinationLng}');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -81,201 +69,119 @@ class DeliveryBottomSheet extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, -5),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+          // Drag Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
 
+          // Scrollable Content
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               children: [
-                // Customer Info Header
+                // Header: Status & ETA
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _StatusBadge(status: order.status),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Estimasi Tiba',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                        ),
+                        Text(
+                          _getEstimatedTime(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Divider(height: 32),
+
+                // Customer Info
+                _buildSectionTitle(context, 'PENERIMA'),
+                const SizedBox(height: 12),
                 Row(
                   children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text(
+                        (order.user?.name ?? 'U')[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             order.user?.name ?? 'Customer',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.verified,
-                                size: 16,
-                                color: AppColors.success,
+                          if (order.user?.phone != null)
+                            Text(
+                              order.user!.phone!,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Mitra Terverifikasi',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.success,
-                                    ),
-                              ),
-                            ],
-                          ),
+                            ),
                         ],
                       ),
                     ),
-
-                    // Action buttons
-                    IconButton(
-                      onPressed: _openChat,
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.chat_bubble_outline,
-                          color: AppColors.success,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => _makePhoneCall(order.user?.phone),
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.phone,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Waybill Card (if available)
-                if (order.hasWaybill)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue.shade50, Colors.blue.shade100],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.description,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Surat Tugas Tersedia',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: Colors.blue.shade900,
-                                ),
-                              ),
-                              Text(
-                                'Lihat sebelum mulai',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: onViewWaybill,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          child: const Text('Lihat',
-                              style: TextStyle(fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 8),
-
-                // Info Cards Row
-                Row(
-                  children: [
-                    // Muatan Card
-                    Expanded(
-                      child: _InfoCard(
-                        icon: Icons.inventory_2,
-                        iconColor: AppColors.primary,
-                        label: 'MUATAN',
-                        value: _getTotalWeight(),
-                        subtitle: _getProductName(),
-                      ),
+                    _CircleActionButton(
+                      icon: Icons.chat_bubble,
+                      color: Colors.green,
+                      onTap: () {}, // TODO: Chat
                     ),
                     const SizedBox(width: 12),
-
-                    // Estimasi Card
-                    Expanded(
-                      child: _InfoCard(
-                        icon: Icons.access_time,
-                        iconColor: Colors.orange,
-                        label: 'ESTIMASI',
-                        value: _getEstimatedTime(),
-                        subtitle: _getRemainingTime(),
-                      ),
+                    _CircleActionButton(
+                      icon: Icons.phone,
+                      color: AppColors.primary,
+                      onTap: () => _makePhoneCall(order.user?.phone),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 24),
 
-                // Lokasi Tujuan
+                // Destination
+                _buildSectionTitle(context, 'LOKASI TUJUAN'),
+                const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -285,75 +191,183 @@ class DeliveryBottomSheet extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 24,
-                        ),
-                      ),
+                      const Icon(Icons.place,
+                          color: Colors.redAccent, size: 28),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Lokasi Tujuan',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              order.destinationAddress,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                        child: Text(
+                          order.destinationAddress,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                       IconButton(
-                        onPressed: () {
-                          // TODO: Open in maps
-                        },
-                        icon: const Icon(Icons.navigation),
+                        onPressed: _openMaps,
+                        icon: const Icon(Icons.map, color: Colors.blue),
+                        tooltip: 'Buka Google Maps',
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
 
-                // Swipe to Complete Button
-                SwipeCompleteButton(
-                  onComplete: onComplete,
-                  text: 'Geser untuk Sampai',
-                ),
-
-                const SizedBox(height: 8),
-
-                // Info text
-                Text(
-                  'Pastikan Anda berada di lokasi yang aman',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                // Cargo Info Grid
+                _buildSectionTitle(context, 'DETAIL MUATAN'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoCard(
+                        icon: Icons.scale,
+                        label: 'Berat Total',
+                        value: _getTotalWeight(),
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoCard(
+                        icon: Icons.category,
+                        label: 'Jenis Produk',
+                        value: _getProductName(),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 50),
               ],
             ),
           ),
+
+          // Sticky Action Section
+          if (order.status != 'completed' && order.status != 'cancelled')
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: _buildActionButton(context),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 1.2,
+        color: Colors.grey[500],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context) {
+    // Primary Action Button content based on status
+    if (order.status == 'assigned') {
+      return ElevatedButton.icon(
+        onPressed: () => onUpdateStatus?.call('picked_up'),
+        icon: const Icon(Icons.check_box),
+        label: const Text('Konfirmasi Penjemputan'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+      );
+    } else if (order.status == 'picked_up') {
+      return ElevatedButton.icon(
+        onPressed: () => onUpdateStatus?.call('on_delivery'),
+        icon: const Icon(Icons.local_shipping),
+        label: const Text('Mulai Pengiriman'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue[600],
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+      );
+    } else if (order.status == 'on_delivery') {
+      return SwipeCompleteButton(
+        onComplete: onComplete,
+        text: 'Geser untuk Selesai',
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String status;
+
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color getStatusColor() {
+      switch (status) {
+        case 'assigned':
+          return Colors.orange;
+        case 'picked_up':
+          return Colors.blue;
+        case 'on_delivery':
+          return Colors.green;
+        default:
+          return Colors.grey;
+      }
+    }
+
+    String getStatusText() {
+      switch (status) {
+        case 'assigned':
+          return 'Menunggu Dijemput';
+        case 'picked_up':
+          return 'Barang Diangkut';
+        case 'on_delivery':
+          return 'Dalam Pengiriman';
+        default:
+          return 'Selesai';
+      }
+    }
+
+    final color = getStatusColor();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Text(
+        getStatusText(),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -361,23 +375,19 @@ class DeliveryBottomSheet extends StatelessWidget {
 
 class _InfoCard extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
   final String label;
   final String value;
-  final String subtitle;
 
   const _InfoCard({
     required this.icon,
-    required this.iconColor,
     required this.label,
     required this.value,
-    required this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
@@ -386,36 +396,52 @@ class _InfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
+          Icon(icon, size: 20, color: Colors.grey[600]),
           const SizedBox(height: 8),
           Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.success,
-                ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CircleActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CircleActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 24),
       ),
     );
   }

@@ -86,6 +86,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       final data = await _apiClient.getOrderTracking(widget.orderId);
 
       if (mounted) {
+        debugPrint('🔍 Tracking Data: ${data.toJson()}');
+        debugPrint('📍 Driver Location: ${data.driverLocation}');
+
         setState(() {
           _trackingData = data;
           _isLoading = false;

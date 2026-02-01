@@ -1,59 +1,114 @@
 class TrackingResponse {
-  final LocationPoint? driverLocation;
-  final LocationPoint destinationLocation; // Titik rumah Mitra
   final String orderStatus;
-  final double? distanceKm;
-  final int? estimatedMinutes;
+  final DriverLocation? driverLocation;
+  final DestinationLocation destinationLocation;
+  final double distanceKm;
+  final int estimatedMinutes;
   final DriverInfo? driver;
 
   TrackingResponse({
+    required this.orderStatus,
     this.driverLocation,
     required this.destinationLocation,
-    required this.orderStatus,
-    this.distanceKm,
-    this.estimatedMinutes,
+    required this.distanceKm,
+    required this.estimatedMinutes,
     this.driver,
   });
 
   factory TrackingResponse.fromJson(Map<String, dynamic> json) {
     return TrackingResponse(
+      orderStatus: json['order_status'] ?? 'pending',
       driverLocation: json['driver_location'] != null
-          ? LocationPoint.fromJson(
-              json['driver_location'] is Map<String, dynamic>
-                  ? json['driver_location']
-                  : Map<String, dynamic>.from(json['driver_location'] as Map))
+          ? DriverLocation.fromJson(json['driver_location'])
           : null,
-      destinationLocation: LocationPoint.fromJson(
-          json['destination_location'] is Map<String, dynamic>
-              ? json['destination_location']
-              : Map<String, dynamic>.from(json['destination_location'] as Map)),
-      orderStatus: json['order_status']?.toString() ?? '',
-      distanceKm: json['distance_km'] != null
-          ? (json['distance_km'] as num?)?.toDouble()
-          : null,
-      estimatedMinutes: json['estimated_minutes'] is int
-          ? json['estimated_minutes']
-          : int.tryParse(json['estimated_minutes']?.toString() ?? ''),
-      driver: json['driver'] != null
-          ? DriverInfo.fromJson(json['driver'] is Map<String, dynamic>
-              ? json['driver']
-              : Map<String, dynamic>.from(json['driver'] as Map))
-          : null,
+      destinationLocation: DestinationLocation.fromJson(
+        json['destination_location'] ?? {'latitude': 0.0, 'longitude': 0.0},
+      ),
+      distanceKm: (json['distance_km'] ?? 0).toDouble(),
+      estimatedMinutes: json['estimated_minutes'] ?? 0,
+      driver:
+          json['driver'] != null ? DriverInfo.fromJson(json['driver']) : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'order_status': orderStatus,
+      'driver_location': driverLocation?.toJson(),
+      'destination_location': destinationLocation.toJson(),
+      'distance_km': distanceKm,
+      'estimated_minutes': estimatedMinutes,
+      'driver': driver?.toJson(),
+    };
+  }
+
+  // Helper untuk cek apakah driver sudah tersedia
+  bool get hasDriver => driver != null && driverLocation != null;
+
+  // Helper untuk status display
+  String get statusDisplay {
+    switch (orderStatus) {
+      case 'pending':
+        return 'Menunggu Konfirmasi';
+      case 'confirmed':
+        return 'Dikonfirmasi';
+      case 'on_the_way':
+        return 'Dalam Perjalanan';
+      case 'delivered':
+        return 'Terkirim';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return orderStatus;
+    }
   }
 }
 
-class LocationPoint {
+class DriverLocation {
   final double latitude;
   final double longitude;
 
-  LocationPoint({required this.latitude, required this.longitude});
+  DriverLocation({
+    required this.latitude,
+    required this.longitude,
+  });
 
-  factory LocationPoint.fromJson(Map<String, dynamic> json) {
-    return LocationPoint(
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+  factory DriverLocation.fromJson(Map<String, dynamic> json) {
+    return DriverLocation(
+      latitude: (json['latitude'] ?? 0).toDouble(),
+      longitude: (json['longitude'] ?? 0).toDouble(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
+}
+
+class DestinationLocation {
+  final double latitude;
+  final double longitude;
+
+  DestinationLocation({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  factory DestinationLocation.fromJson(Map<String, dynamic> json) {
+    return DestinationLocation(
+      latitude: (json['latitude'] ?? 0).toDouble(),
+      longitude: (json['longitude'] ?? 0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'latitude': latitude,
+      'longitude': longitude,
+    };
   }
 }
 
@@ -61,12 +116,22 @@ class DriverInfo {
   final String name;
   final String phone;
 
-  DriverInfo({required this.name, required this.phone});
+  DriverInfo({
+    required this.name,
+    required this.phone,
+  });
 
   factory DriverInfo.fromJson(Map<String, dynamic> json) {
     return DriverInfo(
-      name: json['name']?.toString() ?? '',
-      phone: json['phone']?.toString() ?? '',
+      name: json['name'] ?? 'Driver',
+      phone: json['phone'] ?? '-',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'phone': phone,
+    };
   }
 }
