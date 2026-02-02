@@ -9,8 +9,11 @@ class FailureAnimation extends StatefulWidget {
   const FailureAnimation({
     super.key,
     required this.message,
+    this.title = 'Login Gagal',
     required this.onDismiss,
   });
+
+  final String title;
 
   @override
   State<FailureAnimation> createState() => _FailureAnimationState();
@@ -18,6 +21,7 @@ class FailureAnimation extends StatefulWidget {
   static Future<void> show({
     required BuildContext context,
     required String message,
+    String title = 'Login Gagal',
   }) {
     return showDialog(
       context: context,
@@ -25,6 +29,7 @@ class FailureAnimation extends StatefulWidget {
       barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) => FailureAnimation(
         message: message,
+        title: title,
         onDismiss: () {
           Navigator.of(context).pop();
         },
@@ -65,8 +70,8 @@ class _FailureAnimationState extends State<FailureAnimation> {
               ),
               const SizedBox(height: 16),
 
-              const Text(
-                'Login Gagal',
+              Text(
+                widget.title,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

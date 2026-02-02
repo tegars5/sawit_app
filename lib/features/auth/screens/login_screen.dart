@@ -4,6 +4,7 @@ import '../../../config/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../widgets/success_animation.dart';
 import '../widgets/failure_animation.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -273,7 +274,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              // TODO: Implement forget password
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ForgotPasswordScreen(),
+                                ),
+                              );
                             },
                             child: Text(
                               'Forget Password?',

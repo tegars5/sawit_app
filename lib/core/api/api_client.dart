@@ -221,6 +221,22 @@ class ApiClient {
     }
   }
 
+  Future<void> forgotPassword(String email) async {
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.baseUrl}/forgot-password'),
+          headers: _headers,
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(Duration(seconds: AppConfig.requestTimeout));
+
+    // Laravel biasanya return 200 OK dengan status "We have e-mailed your password reset link!"
+    // Jika user tidak ditemukan, kadang return 422 atau 400 tergantung config.
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
   Future<String> updateProfilePhoto(File imageFile) async {
     // Ensure token is initialized
     if (_token == null) await initializeToken();
@@ -968,8 +984,23 @@ class ApiClient {
   Exception _handleError(http.Response response) {
     try {
       final json = jsonDecode(response.body);
+
+      // Handle Laravel Validation Errors (422)
+      if (response.statusCode == 422 && json['errors'] != null) {
+        final errors = json['errors'] as Map<String, dynamic>;
+        // Get the first error message from the list
+        if (errors.isNotEmpty) {
+          final firstKey = errors.keys.first;
+          final firstErrorList = errors[firstKey] as List;
+          if (firstErrorList.isNotEmpty) {
+            return Exception(firstErrorList.first);
+          }
+        }
+      }
+
       final message = json['message'] ?? 'An error occurred';
-      return Exception('Error ${response.statusCode}: $message');
+      return Exception(
+          message); // Just return the message without "Error 422:" prefix for cleaner UI
     } catch (e) {
       return Exception('Error ${response.statusCode}: ${response.body}');
     }
