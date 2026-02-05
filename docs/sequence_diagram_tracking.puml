@@ -1,0 +1,62 @@
+@startuml Sequence Tracking
+title Sequence Tracking Real-time (Pantau Lokasi Driver)
+skinparam style strictuml
+
+actor "User (Mitra)" as User
+boundary "Halaman Tracking" as UI
+control "ApiClient (Timer)" as API
+control "Server Backend" as Server
+entity "Database" as DB
+
+autonumber
+
+' --- Phase 1: Open Page ---
+User -> UI: Buka Menu "Lacak Pesanan"
+activate UI
+
+UI -> API: Ambil Data Awal
+activate API
+
+API -> Server: Minta Info Lokasi Driver
+activate Server
+
+Server -> DB: Ambil Posisi Driver & Tujuan
+activate DB
+DB --> Server: Data Lokasi Ditemukan
+deactivate DB
+
+Server --> API: Respon: Lokasi Awal
+deactivate Server
+
+API --> UI: Tampilkan Peta & Marker
+deactivate API
+
+' --- Phase 2: Polling Loop (Live Tracking) ---
+loop Setiap 10 Detik (Otomatis)
+    UI -> API: Cek Posisi Driver Sekarang
+    activate API
+    
+    API -> Server: Minta Update Lokasi
+    activate Server
+    
+    Server -> DB: Di mana Driver Sekarang?
+    activate DB
+    DB --> Server: Koordinat Terbaru (Latitude, Longitude)
+    deactivate DB
+    
+    Server --> API: Ini Posisi Terbarunya
+    deactivate Server
+    
+    API -> UI: Geser Ikon Motor di Peta
+    deactivate API
+    
+    UI --> User: Marker Bergerak (Animasi)
+end
+
+' --- Phase 3: Exit ---
+User -> UI: Tekan Tombol Kembali / Keluar
+destroy UI
+UI -> API: Stop Pengecekan (Timer Stop)
+note right: Hemat Baterai & Data
+
+@enduml

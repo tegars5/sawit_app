@@ -1,0 +1,98 @@
+@startuml Sequence Manage Driver
+title Sequence Kelola Driver (Admin)
+skinparam style strictuml
+
+actor "Admin" as Admin
+boundary "Halaman Form Driver" as UI_Form
+boundary "Halaman List Driver" as UI_List
+control "ApiClient" as API
+control "Driver Controller\n(Backend)" as Backend
+entity "Tabel Users\n(Database)" as DB
+
+autonumber
+
+' --- Phase 1: Create Driver (Tambah Driver) ---
+group Tambah Driver Baru
+    Admin -> UI_Form: Isi Form (Nama, No HP, Plat Nomor)
+    activate UI_Form
+    Admin -> UI_Form: Klik "Simpan"
+    
+    UI_Form -> API: createDriver(data)
+    activate API
+    
+    API -> Backend: Kirim Data Driver Baru
+    activate Backend
+    
+    Backend -> Backend: Validasi Email/No HP
+    Backend -> DB: Simpan User (Role: Driver)
+    activate DB
+    DB --> Backend: Berhasil Disimpan
+    deactivate DB
+    
+    Backend --> API: Respon: Driver Terbuat
+    deactivate Backend
+    
+    API --> UI_Form: Sukses
+    deactivate API
+    
+    UI_Form --> Admin: Notifikasi "Driver Ditambahkan"
+    UI_Form -> UI_List: Kembali ke List
+    deactivate UI_Form
+end
+
+' --- Phase 2: Update Driver (Edit Driver) ---
+group Edit Driver
+    Admin -> UI_Form: Ubah Info (Misal: Ganti Kendaraan)
+    activate UI_Form
+    Admin -> UI_Form: Klik "Update"
+    
+    UI_Form -> API: updateDriver(id, data)
+    activate API
+    
+    API -> Backend: Kirim Perubahan Data
+    activate Backend
+    
+    Backend -> DB: Cari Driver & Update Profile
+    activate DB
+    DB --> Backend: Data Terupdate
+    deactivate DB
+    
+    Backend --> API: Respon: Sukses
+    deactivate Backend
+    
+    API --> UI_Form: Sukses
+    deactivate API
+    
+    UI_Form --> Admin: Notifikasi "Data Update"
+    deactivate UI_Form
+end
+
+' --- Phase 3: Delete Driver (Hapus Driver) ---
+group Hapus Driver
+    Admin -> UI_List: Klik Ikon Sampah (Hapus)
+    activate UI_List
+    UI_List -> UI_List: Konfirmasi "Hapus Driver?"
+    Admin -> UI_List: Pilih "Ya"
+    
+    UI_List -> API: deleteDriver(id)
+    activate API
+    
+    API -> Backend: Request Hapus Akun
+    activate Backend
+    
+    Backend -> DB: Hapus Data dari Database
+    activate DB
+    DB --> Backend: Terhapus
+    deactivate DB
+    
+    Backend --> API: Respon: Sukses
+    deactivate Backend
+    
+    API --> UI_List: Refresh List
+    deactivate API
+    
+    UI_List --> Admin: Driver Hilang dari List
+    deactivate UI_List
+end
+
+@enduml

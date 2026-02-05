@@ -1,0 +1,100 @@
+@startuml Sequence Login
+title Sequence Login (Masuk Aplikasi)
+skinparam style strictuml
+
+actor "User" as User
+boundary "Halaman Login" as UI
+control "ApiClient" as API
+control "Server Backend" as Server
+entity "Database" as DB
+boundary "Dashboard" as Home
+
+autonumber
+
+User -> UI: Masukkan Email & Password
+activate UI
+
+UI -> API: Kirim Data Login
+activate API
+
+API -> Server: Request Login ke Server
+activate Server
+
+Server -> DB: Cek Apakah Email Ada?
+activate DB
+DB --> Server: Ada / Tidak Ada
+deactivate DB
+
+alt Login Berhasil (Password Benar)
+    Server -> Server: Cek Password & Buat Token
+    Server --> API: Respon: Login Sukses + Token
+    API -> API: Simpan Token di HP
+    API --> UI: Berhasil Masuk
+    
+    UI -> Home: Pindah ke Halaman Utama
+    activate Home
+    deactivate Home
+else Login Gagal (Password Salah/Email Tidak Ada)
+    Server --> API: Respon: Gagal (401)
+    deactivate Server
+    API --> UI: Info: Gagal Login
+    deactivate API
+    
+    UI --> User: Tampilkan "Email/Password Salah"
+    deactivate UI
+end
+
+@enduml
+
+@startuml Sequence Register
+title Sequence Register (Daftar Akun)
+skinparam style strictuml
+
+actor "User (Mitra)" as User
+boundary "Halaman Register" as UI
+control "ApiClient" as API
+control "Server Backend" as Server
+entity "Database" as DB
+boundary "Dashboard" as Home
+
+autonumber
+
+User -> UI: Isi Nama, Email, Password
+activate UI
+
+UI -> API: Kirim Data Pendaftaran
+activate API
+
+API -> Server: Request Daftar ke Server
+activate Server
+
+Server -> DB: Cek Apakah Email Sudah Dipakai?
+activate DB
+DB --> Server: Email Belum Dipakai (Aman)
+deactivate DB
+
+alt Pendaftaran Berhasil
+    Server -> DB: Simpan Data User Baru
+    activate DB
+    DB --> Server: Tersimpan
+    deactivate DB
+    
+    Server -> Server: Buat Token (Otomatis Login)
+    Server --> API: Respon: Sukses + Token
+    API -> API: Simpan Token di HP
+    API --> UI: Berhasil Daftar
+    
+    UI -> Home: Pindah ke Halaman Utama
+    activate Home
+    deactivate Home
+else Gagal (Email Sudah Ada)
+    Server --> API: Respon: Gagal (422)
+    deactivate Server
+    API --> UI: Info: Pendaftaran Gagal
+    deactivate API
+    
+    UI --> User: Tampilkan "Email Sudah Terdaftar"
+    deactivate UI
+end
+
+@enduml

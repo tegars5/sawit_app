@@ -1,0 +1,98 @@
+@startuml Sequence Manage Product
+title Sequence Kelola Produk (Admin)
+skinparam style strictuml
+
+actor "Admin" as Admin
+boundary "Halaman Form Produk" as UI_Form
+boundary "Halaman List Produk" as UI_List
+control "ApiClient" as API
+control "Product Controller\n(Backend)" as Backend
+entity "Tabel Produk\n(Database)" as DB
+
+autonumber
+
+' --- Phase 1: Create Product (Tambah Produk) ---
+group Tambah Produk Baru
+    Admin -> UI_Form: Isi Form (Nama, Harga, Stok, Foto)
+    activate UI_Form
+    Admin -> UI_Form: Klik "Simpan"
+    
+    UI_Form -> API: createProduct(data, foto)
+    activate API
+    
+    API -> Backend: Kirim Data + Upload Foto
+    activate Backend
+    
+    Backend -> Backend: Validasi Input & Simpan File Foto
+    Backend -> DB: Simpan Data Produk Baru
+    activate DB
+    DB --> Backend: Berhasil Disimpan
+    deactivate DB
+    
+    Backend --> API: Respon: Produk Terbuat
+    deactivate Backend
+    
+    API --> UI_Form: Sukses
+    deactivate API
+    
+    UI_Form --> Admin: Muncul Notifikasi "Berhasil"
+    UI_Form -> UI_List: Kembali ke List
+    deactivate UI_Form
+end
+
+' --- Phase 2: Update Product (Edit Produk) ---
+group Edit Produk
+    Admin -> UI_Form: Ubah Data (Misal: Harga/Stok)
+    activate UI_Form
+    Admin -> UI_Form: Klik "Update"
+    
+    UI_Form -> API: updateProduct(id, data)
+    activate API
+    
+    API -> Backend: Kirim Perubahan Data
+    activate Backend
+    
+    Backend -> DB: Cari Produk & Update
+    activate DB
+    DB --> Backend: Data Terupdate
+    deactivate DB
+    
+    Backend --> API: Respon: Sukses
+    deactivate Backend
+    
+    API --> UI_Form: Sukses
+    deactivate API
+    
+    UI_Form --> Admin: Notifikasi "Update Berhasil"
+    deactivate UI_Form
+end
+
+' --- Phase 3: Delete Product (Hapus Produk) ---
+group Hapus Produk
+    Admin -> UI_List: Klik Ikon Sampah (Hapus)
+    activate UI_List
+    UI_List -> UI_List: Konfirmasi "Yakin Hapus?"
+    Admin -> UI_List: Pilih "Ya"
+    
+    UI_List -> API: deleteProduct(id)
+    activate API
+    
+    API -> Backend: Request Hapus Produk
+    activate Backend
+    
+    Backend -> DB: Hapus Data dari Database
+    activate DB
+    DB --> Backend: Terhapus
+    deactivate DB
+    
+    Backend --> API: Respon: Sukses
+    deactivate Backend
+    
+    API --> UI_List: Refresh List
+    deactivate API
+    
+    UI_List --> Admin: Produk Hilang dari List
+    deactivate UI_List
+end
+
+@enduml

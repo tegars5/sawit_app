@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../config/theme.dart';
@@ -198,8 +199,8 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
     if (_driverLocation == null) return;
 
     try {
-      // Google Directions API
-      const apiKey = 'AIzaSyDQOtvxYHnviEl-e_aQjamwVH8bQZnwh8U';
+      // Load API Key dari .env file
+      final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
       final origin =
           '${_driverLocation!.latitude},${_driverLocation!.longitude}';
       final destination = '${widget.destinationLat},${widget.destinationLng}';

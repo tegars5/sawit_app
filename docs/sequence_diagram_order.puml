@@ -1,0 +1,80 @@
+@startuml Sequence Create Order
+title Sequence Create Order (Alur Pemesanan)
+skinparam style strictuml
+
+actor "User (Mitra)" as User
+boundary "Halaman Produk" as UI_Cart
+boundary "Halaman Checkout" as UI_Checkout
+control "Aplikasi (Logic)" as Provider
+control "ApiClient" as API
+control "Server Backend" as Backend
+entity "Database" as DB
+boundary "Tripay (Pembayaran)" as Gateway
+
+autonumber
+
+' --- Phase 1: Add to Cart ---
+User -> UI_Cart: Pilih Produk & Jumlah
+activate UI_Cart
+UI_Cart -> Provider: Tambah ke Keranjang
+activate Provider
+Provider -> Provider: Update Data Keranjang
+Provider --> UI_Cart: Update Tampilan (Badge)
+deactivate Provider
+deactivate UI_Cart
+
+' --- Phase 2: Checkout ---
+User -> UI_Checkout: Klik Tombol Checkout
+activate UI_Checkout
+UI_Checkout -> Provider: Ambil Item Keranjang
+activate Provider
+Provider --> UI_Checkout: List Barang Siap Bayar
+deactivate Provider
+
+User -> UI_Checkout: Cek Alamat & Total Harga
+UI_Checkout -> UI_Checkout: Pastikan Stok Ada
+UI_Checkout -> User: Tampilkan Total Bayar
+
+' --- Phase 3: Payment & Order Creation ---
+User -> UI_Checkout: Klik "Bayar Sekarang"
+UI_Checkout -> API: Proses Pesanan
+activate API
+
+API -> Backend: Kirim Data Pesanan ke Server
+activate Backend
+
+Backend -> DB: Simpan Order (Status: Pending)
+activate DB
+DB --> Backend: Order Tersimpan
+deactivate DB
+
+Backend -> Gateway: Minta Link Pembayaran
+activate Gateway
+Gateway --> Backend: Ini Link Pembayarannya
+deactivate Gateway
+
+Backend --> API: Kirim Link ke Aplikasi
+deactivate Backend
+
+API --> UI_Checkout: Buka Halaman Pembayaran
+deactivate API
+
+' --- Phase 4: User Pays ---
+UI_Checkout -> Gateway: Muncul Halaman Bayar
+User -> Gateway: Transfer / Bayar
+Gateway --> User: Pembayaran Sukses!
+
+' --- Phase 5: Finalization ---
+Gateway -> Backend: Lapor ke Server (Callback)
+activate Backend
+Backend -> DB: Ubah Status jadi 'Sedang Proses'
+activate DB
+DB --> Backend: Status Terupdate
+deactivate DB
+deactivate Backend
+
+UI_Checkout -> UI_Checkout: Pindah ke Halaman Sukses
+UI_Checkout --> User: Tampilkan "Pesanan Berhasil"
+deactivate UI_Checkout
+
+@enduml

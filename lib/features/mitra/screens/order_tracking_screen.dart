@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/tracking_response.dart';
@@ -27,8 +28,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   List<LatLng> polylineCoordinates = [];
   final Map<MarkerId, Marker> _markers = {};
 
-  // Gunakan API Key yang sudah Kakak buat
-  final String googleMapsApiKey = "AIzaSyDQOtvxYHnviEl-e_aQjamwVH8bQZnwh8U";
+  // Load API Key dari .env file
+  final String googleMapsApiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
 
   @override
   void initState() {

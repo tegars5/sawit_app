@@ -89,19 +89,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Coba convert alamat teks menjadi koordinat (Geocoding)
+  Future<bool> _geocodeAddress(String address) async {
+    setState(() => _isProcessing = true);
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        _selectedLat = locations.first.latitude;
+        _selectedLng = locations.first.longitude;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lokasi ditemukan pada peta!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+        return true;
+      } else {
+        throw 'Alamat tidak ditemukan.';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Gagal mendeteksi lokasi otomatis. Mohon perjelas alamat atau gunakan tombol GPS.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _processCheckout() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validasi: Pastikan titik koordinat sudah didapat agar tracking admin jalan
+    // Validasi: Jika koordinat belum ada (user ketik manual), coba cari via Geocoding
     if (_selectedLat == null || _selectedLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Harap gunakan fitur "Ambil Lokasi" agar pengiriman lebih akurat'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
+      bool success = await _geocodeAddress(_addressController.text);
+      if (!success)
+        return; // Pesan error sudah ditampilkan di function _geocodeAddress
     }
 
     setState(() => _isProcessing = true);

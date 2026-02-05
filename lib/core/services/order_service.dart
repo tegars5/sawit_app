@@ -220,10 +220,6 @@ class OrderService {
     }
   }
 
-  /// Complete delivery with geofencing validation (Driver only)
-  /// Requires driver's current GPS location
-  /// Backend validates driver is within 0.5km radius of destination
-  ///
   /// Returns success response if within radius, error if too far
   Future<Map<String, dynamic>?> completeDelivery({
     required int orderId,

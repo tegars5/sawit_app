@@ -1,6 +1,10 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConfig {
   // API Configuration
-  static const String baseUrl =
+  // Load from .env file, fallback to hardcoded URL if not found
+  static String get baseUrl =>
+      dotenv.env['API_BASE_URL'] ??
       'https://unpensionable-zander-unmotioned.ngrok-free.dev/api';
 
   static const int requestTimeout = 30;

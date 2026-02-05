@@ -1,0 +1,69 @@
+@startuml Sequence Payment Callback
+title Sequence Payment Callback (Proses Pembayaran Otomatis)
+skinparam style strictuml
+
+actor "Sistem Tripay" as Tripay
+control "Halaman Callback\n(Server Kita)" as Controller
+control "Sistem Pembayaran\n(Server Kita)" as Service
+entity "Database" as DB
+actor "User (Mitra)" as User
+
+autonumber
+
+' --- Webhook Trigger ---
+Tripay -> Controller: Lapor: "Ada Pembayaran Masuk"
+activate Controller
+
+' --- Validation Phase ---
+Controller -> Service: Proses Laporan Ini
+activate Service
+
+Service -> Service: Cek Keamanan Data (Signature)
+alt Data Palsu / Tidak Aman
+    Service --> Controller: Tolak Laporan
+    Controller --> Tripay: Respon Error
+    note right: Proses Berhenti
+else Data Aman (Valid)
+    Service -> DB: Cari Nomor Referensi Order
+    activate DB
+    DB --> Service: Order Ditemukan
+    deactivate DB
+end
+
+' --- Status Update Phase ---
+alt Status Pembayaran = SUKSES (LUNAS)
+    Service -> DB: Ubah Status Bayar: 'LUNAS'
+    activate DB
+    DB --> Service: Tersimpan
+    deactivate DB
+    
+    Service -> DB: Ubah Status Order: 'DIPROSES'
+    activate DB
+    DB --> Service: Tersimpan
+    deactivate DB
+    
+    ' Optional Notification
+    Service -> User: Kirim Notifikasi ke HP User\n"Hore! Pembayaran Berhasil"
+    
+else Status = GAGAL / KEDALUWARSA
+    Service -> DB: Ubah Status: 'GAGAL'
+    activate DB
+    DB --> Service: Tersimpan
+    deactivate DB
+    
+    Service -> DB: Ubah Status Order: 'DIBATALKAN'
+    activate DB
+    DB --> Service: Tersimpan
+    deactivate DB
+    
+    Service -> User: Kirim Notifikasi ke HP User\n"Maaf, Pembayaran Gagal"
+end
+
+' --- Response to Tripay ---
+Service --> Controller: Laporan Selesai
+deactivate Service
+
+Controller --> Tripay: Kirim "OK" (Terima Kasih)
+deactivate Controller
+
+@enduml

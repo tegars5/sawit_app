@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/theme.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/auth_service.dart';
@@ -27,6 +28,8 @@ import 'core/models/product.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env");
 
   // Initialize Storage
   await StorageService.init();
@@ -61,7 +64,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         navigatorKey: NotificationService.navigatorKey,
-        title: 'Cangkang Sawit',
+        title: 'FBE',
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
         initialRoute: '/',

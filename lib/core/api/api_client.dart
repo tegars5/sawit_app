@@ -658,11 +658,17 @@ class ApiClient {
 
   // ========== PAYMENT API ==========
 
-  Future<PaymentResponse> createPayment(int orderId) async {
+  Future<PaymentResponse> createPayment(
+    int orderId, {
+    String? paymentMethod,
+  }) async {
     final response = await http
         .post(
           Uri.parse('${AppConfig.baseUrl}/orders/$orderId/pay'),
           headers: _headers,
+          body: paymentMethod != null
+              ? jsonEncode({'payment_method': paymentMethod})
+              : null,
         )
         .timeout(Duration(seconds: AppConfig.requestTimeout));
 
@@ -970,8 +976,7 @@ class ApiClient {
   /// Alias for createPayment
   Future<PaymentResponse> processPayment(
       int orderId, String paymentMethod) async {
-    // For now, just call createPayment. In future, can pass paymentMethod
-    return createPayment(orderId);
+    return createPayment(orderId, paymentMethod: paymentMethod);
   }
 
   /// Alias for updateAvailability

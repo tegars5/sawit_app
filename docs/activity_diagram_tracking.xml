@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2024-02-03T00:00:00.000Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" etag="WEE" version="21.6.8" type="device">
+  <diagram name="Alur Tracking Real-Time" id="TrackingFlow1">
+    <mxGraphModel dx="1422" dy="798" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Swimlanes -->
+        <mxCell id="swimlane_user" value="Pengguna (Mitra/Admin)" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="300" height="800" as="geometry" />
+        </mxCell>
+        <mxCell id="swimlane_app" value="Aplikasi" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" vertex="1" parent="1">
+          <mxGeometry x="340" y="40" width="300" height="800" as="geometry" />
+        </mxCell>
+        <mxCell id="swimlane_backend" value="Server &amp; Peta" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" vertex="1" parent="1">
+          <mxGeometry x="640" y="40" width="300" height="800" as="geometry" />
+        </mxCell>
+
+        <!-- Start Node -->
+        <mxCell id="start" value="" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#ff0000;" vertex="1" parent="swimlane_user">
+          <mxGeometry x="135" y="50" width="30" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="click_tracking" value="Buka Halaman Lacak" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_user">
+          <mxGeometry x="90" y="110" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="check_token" value="Cek Login" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="90" y="110" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="request_tracking" value="Minta Data Lokasi" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="90" y="180" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="return_data" value="Ambil Data Lokasi&#xa;(Driver &amp; Tujuan)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_backend">
+          <mxGeometry x="90" y="180" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="load_map" value="Tampilkan Peta" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="90" y="260" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="view_map" value="Lihat Posisi Driver" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_user">
+          <mxGeometry x="90" y="265" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- Polling Loop -->
+        <mxCell id="timer_loop" value="Tunggu 10 Detik" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="110" y="340" width="80" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fetch_update" value="Cek Lokasi Terbaru" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="90" y="450" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api_update" value="Kirim Lokasi Terbaru" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_backend">
+          <mxGeometry x="90" y="450" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="update_ui" value="Geser Posisi Motor&#xa;di Peta" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="90" y="530" width="120" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="view_update" value="Lihat Pergerakan" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_user">
+          <mxGeometry x="90" y="535" width="120" height="40" as="geometry" />
+        </mxCell>
+
+         <!-- End -->
+         <mxCell id="exit_page" value="Tutup Halaman" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_user">
+          <mxGeometry x="90" y="650" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stop_timer" value="Stop Cek Lokasi" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="swimlane_app">
+          <mxGeometry x="90" y="650" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="end" value="" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#ff0000;" vertex="1" parent="swimlane_user">
+          <mxGeometry x="135" y="730" width="30" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Connectivity -->
+        <mxCell id="e1" edge="1" parent="1" source="start" target="click_tracking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="click_tracking" target="check_token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="check_token" target="request_tracking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="request_tracking" target="return_data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="return_data" target="load_map">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="load_map" target="view_map">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- Loop logic -->
+        <mxCell id="e7" edge="1" parent="1" source="load_map" target="timer_loop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="e8" value="Ya" edge="1" parent="1" source="timer_loop" target="fetch_update">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e9" edge="1" parent="1" source="fetch_update" target="api_update">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="e10" edge="1" parent="1" source="api_update" target="update_ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e11" edge="1" parent="1" source="update_ui" target="view_update">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Loop Back -->
+        <mxCell id="e12" edge="1" parent="1" source="update_ui" target="timer_loop">
+           <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="490" y="600" />
+              <mxPoint x="320" y="600" />
+              <mxPoint x="320" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Exit -->
+        <mxCell id="e13" edge="1" parent="1" source="view_update" target="exit_page">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+         <mxCell id="e14" edge="1" parent="1" source="exit_page" target="stop_timer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="stop_timer" target="end">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

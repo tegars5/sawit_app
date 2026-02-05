@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2024-02-03T00:00:00.000Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" etag="WEE" version="21.6.8" type="device">
+  <diagram name="Sequence Login &amp; Register" id="AuthSequence1">
+    <mxGraphModel dx="1422" dy="798" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Actors & Lifelines (Login) -->
+        <mxCell id="actor_user" value="User (All Roles)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ui_login" value="Halaman Login" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="160" y="80" width="100" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="ctrl_auth" value="ApiClient" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="360" y="80" width="100" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="db_server" value="Server (Backend)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="560" y="80" width="100" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="ui_home" value="Dashboard" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="760" y="80" width="100" height="500" as="geometry" />
+        </mxCell>
+
+        <!-- Messages (Login) -->
+        <mxCell id="msg1" value="1. Input Email &amp; Pass" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="actor_user" target="ui_login">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="70" y="160" as="sourcePoint" />
+            <mxPoint x="160" y="160" as="targetPoint" />
+            <Array as="points">
+                 <mxPoint x="110" y="160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="msg2" value="2. login(email, pass)" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="ui_login" target="ctrl_auth">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="190" as="sourcePoint" />
+            <mxPoint x="360" y="190" as="targetPoint" />
+            <Array as="points">
+                 <mxPoint x="310" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="msg3" value="3. POST /api/login" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="ctrl_auth" target="db_server">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="410" y="220" as="sourcePoint" />
+            <mxPoint x="560" y="220" as="targetPoint" />
+            <Array as="points">
+                 <mxPoint x="510" y="220" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Alt Fragment (Success/Fail) -->
+        <mxCell id="alt_frame" value="Cek Kredensial" style="shape=umlFrame;whiteSpace=wrap;html=1;width=100;height=30;" vertex="1" parent="1">
+          <mxGeometry x="100" y="250" width="700" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="msg4" value="4. Return Token &amp; User Info" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;" edge="1" parent="1" source="db_server" target="ctrl_auth">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560" y="290" as="sourcePoint" />
+            <mxPoint x="410" y="290" as="targetPoint" />
+            <Array as="points">
+                 <mxPoint x="510" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="msg5" value="5. Save Token &amp; Return Success" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;" edge="1" parent="1" source="ctrl_auth" target="ui_login">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="410" y="320" as="sourcePoint" />
+            <mxPoint x="210" y="320" as="targetPoint" />
+            <Array as="points">
+                 <mxPoint x="310" y="320" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="msg6" value="6. Navigate to Home" style="html=1;verticalAlign=bottom;endArrow=block;" edge="1" parent="1" source="ui_login" target="ui_home">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="450" y="350" />
+            </Array>
+             <mxPoint x="210" y="350" as="sourcePoint" />
+            <mxPoint x="760" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Divider Line -->
+         <mxCell id="divider" value="[Login Gagal]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="100" y="360" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="divider_line" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;entryX=1.001;entryY=0.62;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.001;exitY=0.62;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="alt_frame" target="alt_frame">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="100" y="380" as="sourcePoint" />
+            <mxPoint x="800" y="380" as="targetPoint" />
+             <Array as="points">
+                 <mxPoint x="450" y="375" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+         <mxCell id="msg_fail1" value="Error 401 (Invalid Creds)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;" edge="1" parent="1" source="db_server" target="ctrl_auth">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="510" y="400" />
+            </Array>
+            <mxPoint x="560" y="400" as="sourcePoint" />
+            <mxPoint x="410" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+         <mxCell id="msg_fail2" value="Throw Exception" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;" edge="1" parent="1" source="ctrl_auth" target="ui_login">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="310" y="430" />
+            </Array>
+            <mxPoint x="410" y="430" as="sourcePoint" />
+            <mxPoint x="210" y="430" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+         <mxCell id="msg_fail3" value="Tampilkan Pesan Error" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="ui_login" target="actor_user">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="110" y="460" />
+            </Array>
+             <mxPoint x="210" y="460" as="sourcePoint" />
+            <mxPoint x="40" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- REGISTER SECTION (NEW DIAGRAM or BELOW) -->
+        <!-- I'll put it below -->
+        
+        <mxCell id="reg_title" value="Sequence Register" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="360" y="600" width="200" height="30" as="geometry" />
+        </mxCell>
+        
+         <!-- Actors & Lifelines (Register) -->
+         <!-- Reuse vertical alignment -->
+         
+        <mxCell id="ui_register" value="Halaman Register" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="160" y="650" width="100" height="400" as="geometry" />
+        </mxCell>
+        <!-- Use existing lifelines extension visually -->
+        <mxCell id="ctrl_auth_reg" value="ApiClient" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="360" y="650" width="100" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="db_server_reg" value="Server (Backend)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="560" y="650" width="100" height="400" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="msg_reg1" value="1. Input Nama, Email, Pass" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="actor_user" target="ui_register">
+           <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="110" y="700" />
+            </Array>
+             <mxPoint x="40" y="700" as="sourcePoint" />
+             <mxPoint x="160" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="msg_reg2" value="2. register(data)" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="ui_register" target="ctrl_auth_reg">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="310" y="730" />
+            </Array>
+             <mxPoint x="210" y="730" as="sourcePoint" />
+             <mxPoint x="360" y="730" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="msg_reg3" value="3. POST /api/register" style="html=1;verticalAlign=bottom;endArrow=block;entryX=0;entryY=0;" edge="1" parent="1" source="ctrl_auth_reg" target="db_server_reg">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="510" y="760" />
+             </Array>
+             <mxPoint x="410" y="760" as="sourcePoint" />
+             <mxPoint x="560" y="760" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="msg_reg4" value="4. Create User &amp; Return Token" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;" edge="1" parent="1" source="db_server_reg" target="ctrl_auth_reg">
+           <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="510" y="800" />
+            </Array>
+            <mxPoint x="560" y="800" as="sourcePoint" />
+            <mxPoint x="410" y="800" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+         <mxCell id="msg_reg5" value="5. Save Token &amp; Success" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;" edge="1" parent="1" source="ctrl_auth_reg" target="ui_register">
+           <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="310" y="830" />
+            </Array>
+            <mxPoint x="410" y="830" as="sourcePoint" />
+            <mxPoint x="210" y="830" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="msg_reg6" value="6. Navigate to Home" style="html=1;verticalAlign=bottom;endArrow=block;" edge="1" parent="1" source="ui_register" target="ui_home">
+          <mxGeometry relative="1" as="geometry">
+             <Array as="points">
+                 <mxPoint x="450" y="860" />
+            </Array>
+             <mxPoint x="210" y="860" as="sourcePoint" />
+            <mxPoint x="760" y="860" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

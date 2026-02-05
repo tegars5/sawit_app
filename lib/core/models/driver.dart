@@ -5,7 +5,7 @@ class Driver {
   final String? phone;
   final String? vehicleType;
   final String? vehiclePlate;
-  final String availabilityStatus; // 'available', 'busy', 'offline'
+  final String availabilityStatus; 
 
   Driver({
     required this.id,

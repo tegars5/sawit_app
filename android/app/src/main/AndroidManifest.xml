@@ -6,9 +6,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <application
-        android:label="test_app"
+        android:label="FBE"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true">
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDQOtvxYHnviEl-e_aQjamwVH8bQZnwh8U"/>

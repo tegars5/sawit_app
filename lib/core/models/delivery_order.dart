@@ -2,18 +2,18 @@ import 'user.dart';
 
 class DeliveryOrder {
   final int id;
-  final int? orderId; // ✅ Made optional - backend doesn't always send this
+  final int? orderId; 
   final int driverId;
   final String
-      status; // 'assigned', 'on_the_way', 'arrived', 'completed', 'cancelled'
-  final String? waybillPdf; // PDF filename from backend
+      status; 
+  final String? waybillPdf;
   final User? driver;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   DeliveryOrder({
     required this.id,
-    this.orderId, // ✅ Now optional
+    this.orderId,
     required this.driverId,
     required this.status,
     this.waybillPdf,
@@ -23,7 +23,6 @@ class DeliveryOrder {
   });
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
-    // Helper function untuk konversi int yang aman
     int toInt(dynamic value, int defaultValue) {
       if (value == null) return defaultValue;
       if (value is int) return value;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../config/theme.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/payment_response.dart';
@@ -48,6 +49,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _isLoading = true;
         _error = null;
       });
+
+      // Initialize token before request
+      await _apiClient.initializeToken();
 
       final payment = await _apiClient.processPayment(
         widget.orderId,
@@ -154,14 +158,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         color: AppColors.error.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: AppColors.error),
-                          SizedBox(width: 12),
+                          const Icon(Icons.error_outline,
+                              color: AppColors.error),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Payment failed. Please try again.',
-                              style: TextStyle(color: AppColors.error),
+                              _error ?? 'Payment failed. Please try again.',
+                              style: const TextStyle(color: AppColors.error),
                             ),
                           ),
                         ],
@@ -367,6 +372,36 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
           const SizedBox(height: 24),
+
+          if (_payment!.checkoutUrl != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final url = Uri.parse(_payment!.checkoutUrl!);
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not launch payment URL'),
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.payment),
+                label: const Text('Pay Now (Web)'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           SizedBox(
             width: double.infinity,
